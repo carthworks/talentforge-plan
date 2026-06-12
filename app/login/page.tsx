@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { STATIC_USERS, useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
-import { useAuth, STATIC_USERS } from '@/lib/auth';
+import { FormEvent, useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -97,7 +97,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="login-demo">
+        <div className="login-demo" style={{ display: 'none' }}>
           <p className="login-demo-title">
             <i className="ti ti-info-circle" aria-hidden="true" /> Demo accounts
           </p>

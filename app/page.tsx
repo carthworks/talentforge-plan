@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
+import { useState } from 'react';
 
 /* ─── Collapsible Section ──────────────────────────────── */
 function Section({
@@ -65,7 +65,7 @@ export default function HomePage() {
             AI-scored, blockchain-certified engineers — across CS, Mechanical,
             ECE, and Civil — in under 10 minutes.
           </p>
-          <div className="hero-kpis animate-in animate-delay-3">
+          {/* <div className="hero-kpis animate-in animate-delay-3 hidden lg:block hide ">
             {[
               { label: 'Funding Ask', value: '₹25 Cr', note: 'Seed Round' },
               { label: 'Year 2 ARR', value: '₹246 Cr', note: '8 revenue streams' },
@@ -78,7 +78,7 @@ export default function HomePage() {
                 <div className="kpi-note">{k.note}</div>
               </div>
             ))}
-          </div>
+          </div> */}
           <div className="hero-image animate-in animate-delay-4">
             <Image
               src="/student-journey.jpeg"
