@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from './ThemeToggle';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: 'ti-home' },
@@ -24,29 +25,33 @@ export default function Navbar() {
         <span>TalentForge</span>
       </Link>
 
-      <button
-        className="nav-hamburger"
-        onClick={() => setOpen(!open)}
-        aria-label="Toggle navigation"
-        aria-expanded={open}
-      >
-        <i className={`ti ${open ? 'ti-x' : 'ti-menu-2'}`} />
-      </button>
+      <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <ul className={`nav-links${open ? ' open' : ''}`}>
+          {NAV_ITEMS.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={pathname === item.href ? 'active' : ''}
+                onClick={() => setOpen(false)}
+              >
+                <i className={`ti ${item.icon}`} aria-hidden="true" />
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
 
-      <ul className={`nav-links${open ? ' open' : ''}`}>
-        {NAV_ITEMS.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className={pathname === item.href ? 'active' : ''}
-              onClick={() => setOpen(false)}
-            >
-              <i className={`ti ${item.icon}`} aria-hidden="true" />
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+        <ThemeToggle />
+
+        <button
+          className="nav-hamburger"
+          onClick={() => setOpen(!open)}
+          aria-label="Toggle navigation"
+          aria-expanded={open}
+        >
+          <i className={`ti ${open ? 'ti-x' : 'ti-menu-2'}`} />
+        </button>
+      </div>
     </nav>
   );
 }

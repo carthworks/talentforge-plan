@@ -6,6 +6,8 @@ import AuthGuard from '@/components/AuthGuard';
 import Navbar from '@/components/Navbar';
 import UserBar from '@/components/UserBar';
 import { usePathname } from 'next/navigation';
+import { ThemeProvider } from '@/components/ThemeToggle';
+import { ToastProvider } from '@/components/Toast';
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,12 +29,16 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <AuthGuard>
-          <AppShell>{children}</AppShell>
-        </AuthGuard>
-      </StoreProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <StoreProvider>
+            <AuthGuard>
+              <AppShell>{children}</AppShell>
+            </AuthGuard>
+          </StoreProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

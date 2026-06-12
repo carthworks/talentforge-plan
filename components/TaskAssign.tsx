@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { TEAM_MEMBERS, User } from '@/lib/auth';
+import { useToast } from './Toast';
 
 export default function TaskAssign({ taskKey }: { taskKey: string }) {
   const { getTaskAssignee, assignTask, unassignTask } = useStore();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -25,11 +27,13 @@ export default function TaskAssign({ taskKey }: { taskKey: string }) {
 
   const handleAssign = (user: User) => {
     assignTask(taskKey, user.id);
+    toast(`Assigned task to ${user.name}`, 'info');
     setOpen(false);
   };
 
   const handleUnassign = () => {
     unassignTask(taskKey);
+    toast(`Task unassigned`, 'info');
     setOpen(false);
   };
 

@@ -312,12 +312,12 @@ export default function HomePage() {
         </div>
         <div className="team-grid">
           {[
-            { av: 'av-orange', code: 'CEO', name: 'Chief Executive', role: 'Co-founder · Full time', note: 'Must have: EdTech or HR-Tech startup experience. NSDC / government network is a major plus. Drives B2B sales, college partnerships, fundraising.' },
-            { av: 'av-teal', code: 'CTO', name: 'Chief Technology', role: 'Co-founder · Full time', note: 'Must have: ML/AI background, prior experience building assessment or simulation platforms. Owns the Computational Informatics Engine and sandbox infrastructure.' },
+            { av: 'av-orange', code: 'CEO', name: 'Nelson M Sathya', role: 'Chief Product Manager · Full time', note: 'Must have: EdTech or HR-Tech startup experience. NSDC / government network is a major plus. Drives B2B sales, college partnerships, fundraising.' },
+            { av: 'av-teal', code: 'CTTO', name: 'Dr. Ganesh Krish', role: 'Co-Founder & Chief Talent Transformation Officer (CTTO)', note: 'Must have: ML/AI background, prior experience building assessment or simulation platforms. Owns the Computational Informatics Engine and sandbox infrastructure.' },
             { av: 'av-purple', code: 'CPO', name: 'Chief Product', role: 'Co-founder · Full time', note: 'Must have: Gamification or marketplace product experience. Owns student experience, XP system, Cosmos Index, and the multi-discipline sandbox UX.' },
-            { av: 'av-amber', code: 'VP Ops', name: 'VP Operations', role: 'Early hire · Month 1', note: 'Runs employer onboarding, college SaaS delivery, project QA escalations. Ex-operations from Internshala, Naukri, or Flipkart preferred.' },
-            { av: 'av-purple', code: 'Psy', name: 'Industrial Psychologist', role: 'Early hire · Month 2', note: 'PhD in I/O Psychology. Validates the OCEAN assessment, personality-performance correlation, and mental health safeguards.' },
-            { av: 'av-blue', code: 'Gov', name: 'Government Relations', role: 'Advisor or BD hire', note: 'Ex-NSDC, AICTE, or Ministry of Skill Development insider. The government moat only works if someone can navigate the bureaucracy.' },
+            // { av: 'av-amber', code: 'VP Ops', name: 'VP Operations', role: 'Early hire · Month 1', note: 'Runs employer onboarding, college SaaS delivery, project QA escalations. Ex-operations from Internshala, Naukri, or Flipkart preferred.' },
+            // { av: 'av-purple', code: 'Psy', name: 'Industrial Psychologist', role: 'Early hire · Month 2', note: 'PhD in I/O Psychology. Validates the OCEAN assessment, personality-performance correlation, and mental health safeguards.' },
+            // { av: 'av-blue', code: 'Gov', name: 'Government Relations', role: 'Advisor or BD hire', note: 'Ex-NSDC, AICTE, or Ministry of Skill Development insider. The government moat only works if someone can navigate the bureaucracy.' },
           ].map((t) => (
             <div className="team-card" key={t.code}>
               <div className={`team-avatar ${t.av}`}>{t.code}</div>

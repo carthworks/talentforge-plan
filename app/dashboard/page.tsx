@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useAuth, TEAM_MEMBERS } from '@/lib/auth';
 import TaskAssign from '@/components/TaskAssign';
+import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
+import { useToast } from '@/components/Toast';
 
 /* ─── Sprint Data (shared with sprints page) ───────────── */
 const PHASES = [
@@ -232,9 +234,12 @@ const OWNER_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee, getOverallProgress, progress } = useStore();
+  const { toast } = useToast();
   const [selectedSprint, setSelectedSprint] = useState(progress.currentSprintId);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [filter, setFilter] = useState<'all' | 'todo' | 'done'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeNotesKey, setActiveNotesKey] = useState<string | null>(null);
 
   const overall = getOverallProgress();
   const sprint = ALL_SPRINTS.find((s) => s.i === selectedSprint) || ALL_SPRINTS[0];
@@ -252,6 +257,21 @@ export default function DashboardPage() {
     if (filter === 'done') return isTaskDone(sprint.i, i);
     return true;
   });
+
+  // Global search matching
+  const allMatches = ALL_SPRINTS.flatMap((s) =>
+    s.tasks.map((t, idx) => ({
+      ...t,
+      sprintId: s.i,
+      sprintName: s.n,
+      phaseColor: s.phase.color,
+      taskIdx: idx,
+      taskKey: `sprint-${s.i}-task-${idx}`
+    }))
+  ).filter(t =>
+    t.t.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.o.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Owner distribution for current sprint
   const ownerCounts: Record<string, { total: number; done: number }> = {};
@@ -398,62 +418,167 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="dash-filters">
-          {(['all', 'todo', 'done'] as const).map((f) => (
-            <button
-              key={f}
-              className={`dash-filter-btn${filter === f ? ' active' : ''}`}
-              onClick={() => setFilter(f)}
-            >
-              {f === 'all' ? `All (${sprint.tasks.length})` : f === 'todo' ? `To do (${sprint.tasks.length - sp.done})` : `Done (${sp.done})`}
-            </button>
-          ))}
+        {/* Filters & Search row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div className="dash-filters" style={{ marginBottom: 0 }}>
+            {(['all', 'todo', 'done'] as const).map((f) => (
+              <button
+                key={f}
+                className={`dash-filter-btn${filter === f ? ' active' : ''}`}
+                onClick={() => setFilter(f)}
+              >
+                {f === 'all' ? `All (${sprint.tasks.length})` : f === 'todo' ? `To do (${sprint.tasks.length - sp.done})` : `Done (${sp.done})`}
+              </button>
+            ))}
+          </div>
+
+          <div className="search-container">
+            <div className="search-input-wrapper">
+              <i className="ti ti-search search-icon-left" aria-hidden="true" />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search all 148 tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                  <i className="ti ti-x" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Task list */}
         <div className="dash-task-list">
-          {filteredTasks.map((task) => {
-            const origIdx = sprint.tasks.indexOf(task);
-            const done = isTaskDone(sprint.i, origIdx);
-            const taskKey = `sprint-${sprint.i}-task-${origIdx}`;
-            const assigneeId = getTaskAssignee(taskKey);
-            const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
-
-            return (
-              <div key={origIdx} className={`dash-task${done ? ' done' : ''}`}>
-                <button
-                  className={`dash-task-check${done ? ' checked' : ''}`}
-                  style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color } : {}}
-                  onClick={() => toggleTask(sprint.i, origIdx)}
-                >
-                  {done && (
-                    <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  )}
-                </button>
-                <div className="dash-task-body">
-                  <div className="dash-task-text">{task.t}</div>
-                  <div className="dash-task-tags">
-                    <span className="dash-task-owner" style={{ borderColor: `${OWNER_COLORS[task.o] || '#888'}40`, color: OWNER_COLORS[task.o] || '#888' }}>
-                      {task.o}
-                    </span>
-                    {assignee && (
-                      <span className="dash-task-assignee">
-                        <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
-                        {assignee.name.split(' ')[0]}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <TaskAssign taskKey={taskKey} />
+          {searchQuery ? (
+            <>
+              <div className="search-results-header">
+                <span className="search-results-title">Search Results for &ldquo;{searchQuery}&rdquo;</span>
+                <span className="search-results-badge">{allMatches.length} matches</span>
               </div>
-            );
-          })}
-          {filteredTasks.length === 0 && (
-            <div className="dash-empty">
-              <i className="ti ti-checks" style={{ fontSize: 24, color: sprint.phase.color }} aria-hidden="true" />
-              <p>{filter === 'done' ? 'No completed tasks yet' : 'All tasks completed!'}</p>
-            </div>
+              {allMatches.map((match) => {
+                const done = isTaskDone(match.sprintId, match.taskIdx);
+                const notesOpen = activeNotesKey === match.taskKey;
+                const assigneeId = getTaskAssignee(match.taskKey);
+                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+                return (
+                  <div key={match.taskKey} className={`dash-task${done ? ' done' : ''}`} style={{ flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '100%' }}>
+                      <button
+                        className={`dash-task-check${done ? ' checked' : ''}`}
+                        style={done ? { background: match.phaseColor, borderColor: match.phaseColor } : {}}
+                        onClick={() => {
+                          toggleTask(match.sprintId, match.taskIdx);
+                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                        }}
+                      >
+                        {done && (
+                          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        )}
+                      </button>
+                      <div className="dash-task-body">
+                        <div className="dash-task-text">
+                          <span className="search-task-sprint-badge" style={{ background: `${match.phaseColor}20`, color: match.phaseColor, border: `0.5px solid ${match.phaseColor}40` }}>
+                            S{match.sprintId}
+                          </span>
+                          {match.t}
+                        </div>
+                        <div className="dash-task-tags">
+                          <span className="dash-task-owner" style={{ borderColor: `${OWNER_COLORS[match.o] || '#888'}40`, color: OWNER_COLORS[match.o] || '#888' }}>
+                            {match.o}
+                          </span>
+                          {assignee && (
+                            <span className="dash-task-assignee">
+                              <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
+                              {assignee.name.split(' ')[0]}
+                            </span>
+                          )}
+                          <TaskNoteIndicator taskKey={match.taskKey} />
+                        </div>
+                      </div>
+                      <TaskAssign taskKey={match.taskKey} />
+                      <button
+                        className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : match.taskKey); }}
+                        title="Edit task notes"
+                      >
+                        <i className="ti ti-note" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <TaskNotes taskKey={match.taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                  </div>
+                );
+              })}
+              {allMatches.length === 0 && (
+                <div className="dash-empty">
+                  <i className="ti ti-search" style={{ fontSize: 24, color: 'var(--color-text-tertiary)' }} aria-hidden="true" />
+                  <p>No matching tasks found</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {filteredTasks.map((task) => {
+                const origIdx = sprint.tasks.indexOf(task);
+                const done = isTaskDone(sprint.i, origIdx);
+                const taskKey = `sprint-${sprint.i}-task-${origIdx}`;
+                const assigneeId = getTaskAssignee(taskKey);
+                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+                const notesOpen = activeNotesKey === taskKey;
+
+                return (
+                  <div key={origIdx} className={`dash-task${done ? ' done' : ''}`} style={{ flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '100%' }}>
+                      <button
+                        className={`dash-task-check${done ? ' checked' : ''}`}
+                        style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color } : {}}
+                        onClick={() => {
+                          toggleTask(sprint.i, origIdx);
+                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                        }}
+                      >
+                        {done && (
+                          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        )}
+                      </button>
+                      <div className="dash-task-body">
+                        <div className="dash-task-text">{task.t}</div>
+                        <div className="dash-task-tags">
+                          <span className="dash-task-owner" style={{ borderColor: `${OWNER_COLORS[task.o] || '#888'}40`, color: OWNER_COLORS[task.o] || '#888' }}>
+                            {task.o}
+                          </span>
+                          {assignee && (
+                            <span className="dash-task-assignee">
+                              <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
+                              {assignee.name.split(' ')[0]}
+                            </span>
+                          )}
+                          <TaskNoteIndicator taskKey={taskKey} />
+                        </div>
+                      </div>
+                      <TaskAssign taskKey={taskKey} />
+                      <button
+                        className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : taskKey); }}
+                        title="Edit task notes"
+                      >
+                        <i className="ti ti-note" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <TaskNotes taskKey={taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                  </div>
+                );
+              })}
+              {filteredTasks.length === 0 && (
+                <div className="dash-empty">
+                  <i className="ti ti-checks" style={{ fontSize: 24, color: sprint.phase.color }} aria-hidden="true" />
+                  <p>{filter === 'done' ? 'No completed tasks yet' : 'All tasks completed!'}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

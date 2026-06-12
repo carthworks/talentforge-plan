@@ -3,6 +3,15 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import TaskAssign from '@/components/TaskAssign';
+import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
+import { useToast } from '@/components/Toast';
+import { TEAM_MEMBERS } from '@/lib/auth';
+
+const OWNER_COLORS: Record<string, string> = {
+  DevOps: '#5BA3E0', BE: '#1D9E75', 'AI/ML': '#9B93F0', FE: '#D85A30',
+  Product: '#BA7517', CIE: '#E06060', BC: '#378ADD', QA: '#7BBF44',
+  GTM: '#D4A040',
+};
 
 /* ─── Sprint Data ──────────────────────────────────────── */
 const PHASES = [
@@ -222,10 +231,15 @@ const PHASES = [
 
 type Sprint = (typeof PHASES)[number]['sprints'][number];
 
+const ALL_SPRINTS = PHASES.flatMap((p) => p.sprints.map((s) => ({ ...s, phase: p })));
+
 export default function SprintsPage() {
   const [activePhase, setActivePhase] = useState(0);
   const [activeSprint, setActiveSprint] = useState(0);
-  const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint } = useStore();
+  const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee } = useStore();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeNotesKey, setActiveNotesKey] = useState<string | null>(null);
 
   const phase = PHASES[activePhase];
   const sprint = phase.sprints[activeSprint];
@@ -233,14 +247,33 @@ export default function SprintsPage() {
 
   return (
     <main className="page">
-      <div className="page-header">
-        <div className="page-tag" style={{ background: 'rgba(29,158,117,0.12)', color: 'var(--tf-teal)', border: '0.5px solid rgba(29,158,117,0.2)' }}>
-          Sprint Breakdown
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div className="page-tag" style={{ background: 'rgba(29,158,117,0.12)', color: 'var(--tf-teal)', border: '0.5px solid rgba(29,158,117,0.2)' }}>
+            Sprint Breakdown
+          </div>
+          <h1 className="page-title">26 Sprints · 148 Tasks · 24 Months</h1>
+          <p className="page-subtitle">
+            Full sprint-level task breakdown across 4 phases, each with tasks, owners, and definition of done.
+          </p>
         </div>
-        <h1 className="page-title">26 Sprints · 148 Tasks · 24 Months</h1>
-        <p className="page-subtitle">
-          Full sprint-level task breakdown across 4 phases, each with tasks, owners, and definition of done.
-        </p>
+        <div className="search-container">
+          <div className="search-input-wrapper">
+            <i className="ti ti-search search-icon-left" aria-hidden="true" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search all 148 tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                <i className="ti ti-x" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="kpi-row">
@@ -337,28 +370,164 @@ export default function SprintsPage() {
             Tasks
           </p>
 
-          {sprint.tasks.map((task, i) => {
-            const done = isTaskDone(sprint.i, i);
-            const taskKey = `sprint-${sprint.i}-task-${i}`;
-            return (
-              <div
-                key={i}
-                className={`task-row${done ? ' done' : ''}`}
-                onClick={() => toggleTask(sprint.i, i)}
-              >
-                <div className={`task-checkbox${done ? ' checked' : ''}`} style={done ? { background: phase.color, borderColor: phase.color } : {}}>
-                  {done && (
-                    <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true">
-                      <path d="M1.5 4.5l2 2L7.5 2" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <span className="task-text">{task.t}</span>
-                <span className="task-owner">{task.o}</span>
-                <TaskAssign taskKey={taskKey} />
+          {searchQuery ? (
+            <>
+              <div className="search-results-header">
+                <span className="search-results-title">Search Results for &ldquo;{searchQuery}&rdquo;</span>
+                <span className="search-results-badge">{allMatches.length} matches</span>
               </div>
-            );
-          })}
+              {allMatches.map((match) => {
+                const done = isTaskDone(match.sprintId, match.taskIdx);
+                const taskKey = match.taskKey;
+                const notesOpen = activeNotesKey === taskKey;
+                const assigneeId = getTaskAssignee(taskKey);
+                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+
+                return (
+                  <div
+                    key={taskKey}
+                    className={`task-row${done ? ' done' : ''}`}
+                    style={{ flexWrap: 'wrap', cursor: 'default' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                      <div
+                        className={`task-checkbox${done ? ' checked' : ''}`}
+                        style={done ? { background: match.phaseColor, borderColor: match.phaseColor, cursor: 'pointer' } : { cursor: 'pointer' }}
+                        onClick={() => {
+                          toggleTask(match.sprintId, match.taskIdx);
+                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                        }}
+                      >
+                        {done && (
+                          <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true">
+                            <path d="M1.5 4.5l2 2L7.5 2" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+
+                      <span
+                        className="task-text"
+                        style={{ cursor: 'pointer', flex: 1 }}
+                        onClick={() => {
+                          toggleTask(match.sprintId, match.taskIdx);
+                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                        }}
+                      >
+                        <span className="search-task-sprint-badge" style={{ background: `${match.phaseColor}20`, color: match.phaseColor, border: `0.5px solid ${match.phaseColor}40` }}>
+                          S{match.sprintId}
+                        </span>
+                        {match.t}
+                      </span>
+
+                      <span className="task-owner" style={{ borderColor: `${OWNER_COLORS[match.o] || '#888'}40`, color: OWNER_COLORS[match.o] || '#888' }}>
+                        {match.o}
+                      </span>
+
+                      {assignee && (
+                        <span className="dash-task-assignee" style={{ marginRight: 4 }}>
+                          <span className={`dash-task-avatar ${assignee.avatarColor}`} style={{ width: 14, height: 14, fontSize: 6 }}>
+                            {assignee.avatar}
+                          </span>
+                          {assignee.name.split(' ')[0]}
+                        </span>
+                      )}
+
+                      <TaskNoteIndicator taskKey={taskKey} />
+
+                      <TaskAssign taskKey={taskKey} />
+
+                      <button
+                        className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : taskKey); }}
+                        title="Edit task notes"
+                      >
+                        <i className="ti ti-note" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    <TaskNotes taskKey={taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                  </div>
+                );
+              })}
+              {allMatches.length === 0 && (
+                <div className="dash-empty">
+                  <i className="ti ti-search" style={{ fontSize: 24, color: 'var(--color-text-tertiary)' }} aria-hidden="true" />
+                  <p>No matching tasks found</p>
+                </div>
+              )}
+            </>
+          ) : (
+            sprint.tasks.map((task, i) => {
+              const done = isTaskDone(sprint.i, i);
+              const taskKey = `sprint-${sprint.i}-task-${i}`;
+              const notesOpen = activeNotesKey === taskKey;
+              const assigneeId = getTaskAssignee(taskKey);
+              const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+
+              return (
+                <div
+                  key={i}
+                  className={`task-row${done ? ' done' : ''}`}
+                  style={{ flexWrap: 'wrap', cursor: 'default' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                    <div
+                      className={`task-checkbox${done ? ' checked' : ''}`}
+                      style={done ? { background: phase.color, borderColor: phase.color, cursor: 'pointer' } : { cursor: 'pointer' }}
+                      onClick={() => {
+                        toggleTask(sprint.i, i);
+                        toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                      }}
+                    >
+                      {done && (
+                        <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true">
+                          <path d="M1.5 4.5l2 2L7.5 2" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <span
+                      className="task-text"
+                      style={{ cursor: 'pointer', flex: 1 }}
+                      onClick={() => {
+                        toggleTask(sprint.i, i);
+                        toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                      }}
+                    >
+                      {task.t}
+                    </span>
+
+                    <span className="task-owner" style={{ borderColor: `${OWNER_COLORS[task.o] || '#888'}40`, color: OWNER_COLORS[task.o] || '#888' }}>
+                      {task.o}
+                    </span>
+
+                    {assignee && (
+                      <span className="dash-task-assignee" style={{ marginRight: 4 }}>
+                        <span className={`dash-task-avatar ${assignee.avatarColor}`} style={{ width: 14, height: 14, fontSize: 6 }}>
+                          {assignee.avatar}
+                        </span>
+                        {assignee.name.split(' ')[0]}
+                      </span>
+                    )}
+
+                    <TaskNoteIndicator taskKey={taskKey} />
+
+                    <TaskAssign taskKey={taskKey} />
+
+                    <button
+                      className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : taskKey); }}
+                      title="Edit task notes"
+                    >
+                      <i className="ti ti-note" aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <TaskNotes taskKey={taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                </div>
+              );
+            })
+          )}
 
           <div style={{ marginTop: 14, background: 'var(--color-background-tertiary)', borderRadius: 'var(--border-radius-md)', padding: '10px 12px' }}>
             <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
