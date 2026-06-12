@@ -1,0 +1,85 @@
+# ══════════════════════════════════════════════════════════
+# TalentForge — .gitignore
+# ══════════════════════════════════════════════════════════
+
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnp/
+.pnp.js
+.pnp.cjs
+.yarn/install-state.gz
+
+# ── Next.js ───────────────────────────────────────────────
+.next/
+out/
+build/
+.swc/
+
+# ── Vercel ────────────────────────────────────────────────
+.vercel/
+
+# ── Environment Variables ─────────────────────────────────
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── TypeScript ────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Testing ───────────────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ── Debug Logs ────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ── OS Generated ─────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── IDE / Editor ──────────────────────────────────────────
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── Misc ──────────────────────────────────────────────────
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.orig
+.cache/
+.temp/
+.tmp/
+
+# ── Package Manager Locks (keep only npm) ─────────────────
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+html_source_docs/

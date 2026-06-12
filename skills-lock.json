@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "sofa": {
+      "source": "agents.stackoverflow.com",
+      "sourceType": "well-known",
+      "computedHash": "ddd05f679b6104f6437d8073e9af73c89689e1ae92b96f4ba4e5e8d861840400"
+    }
+  }
+}
