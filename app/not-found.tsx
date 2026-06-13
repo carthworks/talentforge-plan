@@ -66,7 +66,7 @@ export default function NotFound() {
           justifyContent: 'center',
           gap: '12px'
         }}>
-          <Link href="/" className="btn btn-primary" style={{
+          <Link href="/dashboard" className="btn btn-primary" style={{
             textDecoration: 'none',
             display: 'inline-flex',
             alignItems: 'center',
@@ -79,27 +79,8 @@ export default function NotFound() {
             color: 'white',
             transition: 'background 0.2s'
           }}>
-            <i className="ti ti-home" aria-hidden="true" />
-            Home Page
-          </Link>
-          <Link href="/dashboard" style={{
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            padding: '8px 16px',
-            borderRadius: 'var(--border-radius-md)',
-            fontWeight: 500,
-            background: 'transparent',
-            color: 'var(--color-text-primary)',
-            border: '0.5px solid var(--color-border-tertiary)',
-            transition: 'all 0.2s'
-          }}
-          className="btn-secondary-custom"
-          >
             <i className="ti ti-layout-dashboard" aria-hidden="true" />
-            Dashboard
+            Go to Dashboard
           </Link>
         </div>
       </div>

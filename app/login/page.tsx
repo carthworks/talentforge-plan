@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   // If already logged in, redirect (in effect, not during render)
   useEffect(() => {
-    if (user) router.replace('/');
+    if (user) router.replace('/dashboard');
   }, [user, router]);
 
   if (user) return null;
@@ -31,7 +31,7 @@ export default function LoginPage() {
         setError(err);
         setIsSubmitting(false);
       } else {
-        router.replace('/');
+        router.replace('/dashboard');
       }
     }, 400);
   };

@@ -245,6 +245,28 @@ export default function DashboardPage() {
   const sprint = ALL_SPRINTS.find((s) => s.i === selectedSprint) || ALL_SPRINTS[0];
   const sp = getSprintProgress(sprint.i, sprint.tasks.length);
 
+  // Calculate stats per phase
+  const phaseStats = PHASES.map((p) => {
+    let total = 0;
+    let done = 0;
+    p.sprints.forEach((s) => {
+      s.tasks.forEach((_, taskIdx) => {
+        total++;
+        if (isTaskDone(s.i, taskIdx)) done++;
+      });
+    });
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      period: p.period,
+      total,
+      done,
+      pct,
+    };
+  });
+
   // Team workload: count assigned tasks per team member
   const workload = TEAM_MEMBERS.reduce<Record<string, number>>((acc, m) => {
     acc[m.id] = progress.assignments.filter((a) => a.assigneeId === m.id).length;
@@ -584,6 +606,58 @@ export default function DashboardPage() {
 
         {/* Bottom panels: Owner breakdown + Team workload */}
         <div className="dash-panels">
+          <div className="dash-panel" style={{ gridColumn: 'span 2' }}>
+            <h3 className="dash-panel-title"><i className="ti ti-chart-pie" aria-hidden="true" /> Project Status Overview</h3>
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.5rem' }}>
+              {/* Radial/Donut Chart */}
+              <div style={{ position: 'relative', width: 110, height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, margin: '0 auto' }}>
+                <svg width="110" height="110" viewBox="0 0 110 110">
+                  <circle cx="55" cy="55" r="45" fill="none" stroke="var(--color-background-primary)" strokeWidth="10" />
+                  <circle
+                    cx="55" cy="55" r="45" fill="none"
+                    stroke="var(--tf-teal)"
+                    strokeWidth="10"
+                    strokeDasharray={`${overall.pct * 2.82} 282`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 55 55)"
+                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{overall.pct}%</div>
+                  <div style={{ fontSize: '9px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complete</div>
+                </div>
+              </div>
+
+              {/* Phase stats list */}
+              <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', width: '100%' }}>
+                {phaseStats.map((p) => (
+                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        Phase {p.id}
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: p.color }}>
+                        {p.pct}%
+                      </span>
+                    </div>
+                    <div style={{ height: 5, background: 'var(--color-background-primary)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${p.pct}%`, background: p.color, borderRadius: 3, transition: 'width 0.5s ease' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
+                        {p.done} / {p.total} tasks
+                      </span>
+                      <span style={{ fontSize: '9px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>
+                        {p.period}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="dash-panel">
             <h3 className="dash-panel-title"><i className="ti ti-chart-bar" aria-hidden="true" /> Owner Breakdown</h3>
             {Object.entries(ownerCounts).map(([owner, { total, done }]) => (
