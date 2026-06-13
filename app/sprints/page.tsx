@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import TaskAssign from '@/components/TaskAssign';
 import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
@@ -244,6 +244,25 @@ export default function SprintsPage() {
   const phase = PHASES[activePhase];
   const sprint = phase.sprints[activeSprint];
   const sprintProg = getSprintProgress(sprint.i, sprint.tasks.length);
+
+  const allMatches = useMemo(() => {
+    if (!searchQuery) return [];
+    return ALL_SPRINTS.flatMap((s) =>
+      s.tasks
+        .map((task, idx) => ({
+          sprintId: s.i,
+          taskIdx: idx,
+          taskKey: `sprint-${s.i}-task-${idx}`,
+          phaseColor: s.phase.color,
+          t: task.t,
+          o: task.o,
+        }))
+        .filter((match) =>
+          match.t.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          match.o.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    );
+  }, [searchQuery]);
 
   return (
     <main className="page">
