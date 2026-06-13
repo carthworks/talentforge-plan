@@ -19,24 +19,21 @@ export const STATIC_USERS: Record<string, { password: string; user: User }> = {
   },
   'dev@talentforge.in': {
     password: 'tf2025',
-    user: { id: 'u2', name: 'Rohan', email: 'dev@talentforge.in', role: 'developer', avatar: 'PS', avatarColor: 'av-teal' },
+    user: { id: 'u2', name: 'Rohan', email: 'Rohan@talentforge.in', role: 'developer', avatar: 'PS', avatarColor: 'av-teal' },
   },
   'designer@talentforge.in': {
-    password: 'kt2025',
+    password: 'tf2025',
     user: { id: 'u3', name: 'Karthikeyan', email: 'kt@talentforge.in', role: 'pm', avatar: 'RM', avatarColor: 'av-purple' },
   },
   'pm@talentforge.in': {
     password: 'tf2025',
-    user: { id: 'u4', name: 'Sneha Iyer', email: 'pm@talentforge.in', role: 'pm', avatar: 'SI', avatarColor: 'av-amber' },
+    user: { id: 'u4', name: 'sathya', email: 'sathya@talentforge.in', role: 'pm', avatar: 'NS', avatarColor: 'av-amber' },
   },
   'devops@talentforge.in': {
     password: 'tf2025',
-    user: { id: 'u5', name: 'Vikram Reddy', email: 'devops@talentforge.in', role: 'devops', avatar: 'VR', avatarColor: 'av-blue' },
-  },
-  'qa@talentforge.in': {
-    password: 'tf2025',
-    user: { id: 'u6', name: 'Meera Nair', email: 'qa@talentforge.in', role: 'qa', avatar: 'MN', avatarColor: 'av-orange' },
-  },
+    user: { id: 'u5', name: 'Ganesh', email: 'ganesh@talentforge.in', role: 'devops', avatar: 'GR', avatarColor: 'av-blue' },
+  }
+  
 };
 
 export const TEAM_MEMBERS: User[] = Object.values(STATIC_USERS).map((u) => u.user);

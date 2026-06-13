@@ -372,11 +372,12 @@ export default function HomePage() {
       {/* ── SECTION 7: Risks ── */}
       <Section num="07" icon="ti-shield-exclamation" title="Honest Risk Register">
         {[
-          { level: 'risk-high', badge: 'badge-red', label: 'High', title: 'Simulation API costs kill unit economics', desc: 'ANSYS Cloud at ₹500/simulation means 10,000 Mechanical projects = ₹50L/month COGS. Mitigation: negotiate volume pricing to ₹100–200/simulation before scaling Mechanical.' },
+          
           { level: 'risk-high', badge: 'badge-red', label: 'High', title: 'Chicken-and-egg problem on both sides', desc: 'Employers won\'t post without students; students won\'t join without projects. Mitigation: use college SaaS as the supply-side wedge — lock in 10 colleges first.' },
           { level: 'risk-med', badge: 'badge-amber', label: 'Medium', title: 'Gig economy classification risk', desc: 'If government classifies earnings as employment, mandatory EPF/ESI could break the model. Mitigation: "educational platform" framing + AICTE credit recognition.' },
           { level: 'risk-med', badge: 'badge-amber', label: 'Medium', title: 'Psychometric validity claims face backlash', desc: 'If employer hires based on "87% success probability" and person fails, trust collapses. Mitigation: never guarantee outcomes; frame as "data-informed shortlisting."' },
           { level: 'risk-low', badge: 'badge-green', label: 'Low', title: 'Blockchain / NFT perception problem', desc: 'Indian enterprises distrust "blockchain" and "NFT" language after crypto crash. Mitigation: call it "tamper-proof digital credentialing." Lead with outcomes.' },
+          { level: 'risk-high', badge: 'badge-red', label: 'High', title: 'Simulation API costs kill unit economics', desc: 'ANSYS Cloud at ₹500/simulation means 10,000 Mechanical projects = ₹50L/month COGS. Mitigation: negotiate volume pricing to ₹100–200/simulation before scaling Mechanical.' }
         ].map((r, i) => (
           <div className={`risk-item ${r.level}`} key={i}>
             <div className="risk-title"><span className={`badge ${r.badge}`}>{r.label}</span>{r.title}</div>
