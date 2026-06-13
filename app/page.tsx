@@ -10,6 +10,7 @@ function Section({
   title,
   titleExtra,
   defaultOpen = false,
+  style,
   children,
 }: {
   num: string;
@@ -17,11 +18,12 @@ function Section({
   title: string;
   titleExtra?: React.ReactNode;
   defaultOpen?: boolean;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="section">
+    <div className="section" style={style}>
       <div
         className="section-header"
         role="button"
@@ -387,6 +389,7 @@ export default function HomePage() {
       <Section
         num="08"
         icon="ti-rocket"
+        style={{ display: 'none' }}
         title="Funding Ask & Exit Strategy"
         titleExtra={
           <span className="inline-flag flag-critical" style={{ marginLeft: 6 }}>

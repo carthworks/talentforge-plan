@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 /* ─── Static users ─────────────────────────────────────── */
 export interface User {
@@ -15,15 +15,15 @@ export interface User {
 export const STATIC_USERS: Record<string, { password: string; user: User }> = {
   'admin@talentforge.in': {
     password: 'tf2025',
-    user: { id: 'u1', name: 'Arun Kumar', email: 'admin@talentforge.in', role: 'admin', avatar: 'AK', avatarColor: 'av-orange' },
+    user: { id: 'u1', name: 'administrator', email: 'admin@talentforge.in', role: 'admin', avatar: 'AK', avatarColor: 'av-orange' },
   },
   'dev@talentforge.in': {
     password: 'tf2025',
-    user: { id: 'u2', name: 'Priya Sharma', email: 'dev@talentforge.in', role: 'developer', avatar: 'PS', avatarColor: 'av-teal' },
+    user: { id: 'u2', name: 'Rohan', email: 'dev@talentforge.in', role: 'developer', avatar: 'PS', avatarColor: 'av-teal' },
   },
   'designer@talentforge.in': {
-    password: 'tf2025',
-    user: { id: 'u3', name: 'Rahul Mehta', email: 'designer@talentforge.in', role: 'designer', avatar: 'RM', avatarColor: 'av-purple' },
+    password: 'kt2025',
+    user: { id: 'u3', name: 'Karthikeyan', email: 'kt@talentforge.in', role: 'pm', avatar: 'RM', avatarColor: 'av-purple' },
   },
   'pm@talentforge.in': {
     password: 'tf2025',
