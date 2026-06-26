@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useStore } from '@/lib/store';
-import { useAuth, TEAM_MEMBERS } from '@/lib/auth';
 import TaskAssign from '@/components/TaskAssign';
 import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/lib/auth';
+import { useStore } from '@/lib/store';
+import { useCallback, useState } from 'react';
 
 /* ─── Sprint Data (shared with sprints page) ───────────── */
 const PHASES = [
@@ -233,26 +233,73 @@ const OWNER_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { user, users } = useAuth();
-  const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee, getOverallProgress, progress } = useStore();
+  const { 
+    toggleTask, 
+    isTaskDone, 
+    getSprintProgress, 
+    setCurrentSprint, 
+    getTaskAssignee, 
+    getOverallProgress, 
+    progress,
+    addCustomTask,
+    editTask,
+    deleteCustomTask
+  } = useStore();
   const { toast } = useToast();
+  
   const [selectedSprint, setSelectedSprint] = useState(progress.currentSprintId);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [filter, setFilter] = useState<'all' | 'todo' | 'done'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeNotesKey, setActiveNotesKey] = useState<string | null>(null);
 
+  // Quick filters states
+  const [filterAssignee, setFilterAssignee] = useState<string | null>(null);
+  const [filterOwner, setFilterOwner] = useState<string | null>(null);
+
+  // Dynamic tasks addition/editing states
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskOwner, setNewTaskOwner] = useState('BE');
+  const [editingTaskKey, setEditingTaskKey] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskOwner, setEditTaskOwner] = useState('');
+
+  // Task list resolver combining static and custom tasks with overrides
+  const getSprintTasks = useCallback((sprintId: number) => {
+    const sprintObj = ALL_SPRINTS.find((s) => s.i === sprintId);
+    if (!sprintObj) return [];
+    const staticTasks = sprintObj.tasks;
+    const customTasks = progress.customTasks?.[sprintId] || [];
+    
+    return [...staticTasks, ...customTasks].map((task, idx) => {
+      const taskKey = `sprint-${sprintId}-task-${idx}`;
+      const edited = progress.editedTasks?.[taskKey];
+      return {
+        t: edited?.t ?? task.t,
+        o: edited?.o ?? task.o,
+        isCustom: idx >= staticTasks.length,
+        customIdx: idx >= staticTasks.length ? idx - staticTasks.length : -1,
+        taskIdx: idx,
+        taskKey,
+      };
+    });
+  }, [progress.customTasks, progress.editedTasks]);
+
+  const currentSprintTasks = getSprintTasks(selectedSprint);
   const overall = getOverallProgress();
   const sprint = ALL_SPRINTS.find((s) => s.i === selectedSprint) || ALL_SPRINTS[0];
-  const sp = getSprintProgress(sprint.i, sprint.tasks.length);
+  const sp = getSprintProgress(sprint.i, currentSprintTasks.length);
 
-  // Calculate stats per phase
+  // Calculate stats per phase (including custom tasks)
   const phaseStats = PHASES.map((p) => {
     let total = 0;
     let done = 0;
     p.sprints.forEach((s) => {
-      s.tasks.forEach((_, taskIdx) => {
+      const tasks = getSprintTasks(s.i);
+      tasks.forEach((task) => {
         total++;
-        if (isTaskDone(s.i, taskIdx)) done++;
+        if (isTaskDone(s.i, task.taskIdx)) done++;
       });
     });
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -269,38 +316,65 @@ export default function DashboardPage() {
 
   // Team workload: count assigned tasks per team member
   const workload = users.reduce<Record<string, number>>((acc, m) => {
-    acc[m.id] = progress.assignments.filter((a) => a.assigneeId === m.id).length;
+    acc[m.id] = progress.assignments.filter((a) => {
+      if (a.assigneeId !== m.id) return false;
+      const match = a.taskKey.match(/sprint-(\d+)-task-(\d+)/);
+      if (!match) return false;
+      const sprintId = parseInt(match[1], 10);
+      const taskIdx = parseInt(match[2], 10);
+      const tasks = getSprintTasks(sprintId);
+      return taskIdx < tasks.length;
+    }).length;
     return acc;
   }, {});
 
-  // Filter tasks
-  const filteredTasks = sprint.tasks.filter((_, i) => {
-    if (filter === 'todo') return !isTaskDone(sprint.i, i);
-    if (filter === 'done') return isTaskDone(sprint.i, i);
+  // Filter tasks for current sprint
+  const filteredTasks = currentSprintTasks.filter((task) => {
+    const done = isTaskDone(sprint.i, task.taskIdx);
+    if (filter === 'todo' && done) return false;
+    if (filter === 'done' && !done) return false;
+    
+    if (filterAssignee) {
+      const assigneeId = getTaskAssignee(task.taskKey);
+      if (assigneeId !== filterAssignee) return false;
+    }
+    if (filterOwner) {
+      if (task.o.toLowerCase() !== filterOwner.toLowerCase()) return false;
+    }
     return true;
   });
 
-  // Global search matching
+  // Global search matching (searching all combined tasks)
   const allMatches = ALL_SPRINTS.flatMap((s) =>
-    s.tasks.map((t, idx) => ({
+    getSprintTasks(s.i).map((t) => ({
       ...t,
       sprintId: s.i,
       sprintName: s.n,
       phaseColor: s.phase.color,
-      taskIdx: idx,
-      taskKey: `sprint-${s.i}-task-${idx}`
     }))
   ).filter(t =>
     t.t.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.o.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Apply filters to search results
+  const filteredMatches = allMatches.filter((match) => {
+    if (filterAssignee) {
+      const assigneeId = getTaskAssignee(match.taskKey);
+      if (assigneeId !== filterAssignee) return false;
+    }
+    if (filterOwner) {
+      if (match.o.toLowerCase() !== filterOwner.toLowerCase()) return false;
+    }
+    return true;
+  });
+
   // Owner distribution for current sprint
   const ownerCounts: Record<string, { total: number; done: number }> = {};
-  sprint.tasks.forEach((task, i) => {
+  currentSprintTasks.forEach((task) => {
     if (!ownerCounts[task.o]) ownerCounts[task.o] = { total: 0, done: 0 };
     ownerCounts[task.o].total++;
-    if (isTaskDone(sprint.i, i)) ownerCounts[task.o].done++;
+    if (isTaskDone(sprint.i, task.taskIdx)) ownerCounts[task.o].done++;
   });
 
   return (
@@ -449,7 +523,7 @@ export default function DashboardPage() {
                 className={`dash-filter-btn${filter === f ? ' active' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all' ? `All (${sprint.tasks.length})` : f === 'todo' ? `To do (${sprint.tasks.length - sp.done})` : `Done (${sp.done})`}
+                {f === 'all' ? `All (${currentSprintTasks.length})` : f === 'todo' ? `To do (${currentSprintTasks.length - sp.done})` : `Done (${sp.done})`}
               </button>
             ))}
           </div>
@@ -473,68 +547,211 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Active Filters row */}
+        {(filterAssignee || filterOwner) && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', animation: 'fade-in 0.2s' }}>
+            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, textTransform: 'uppercase' }}>
+              Active Filters:
+            </span>
+            {filterAssignee && (
+              <span className="search-results-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 10px', background: 'rgba(29, 158, 117, 0.08)', color: 'var(--tf-teal)', borderColor: 'rgba(29, 158, 117, 0.2)' }}>
+                Assignee: {users.find(u => u.id === filterAssignee)?.name || filterAssignee}
+                <button 
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                  onClick={() => setFilterAssignee(null)}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 11 }} />
+                </button>
+              </span>
+            )}
+            {filterOwner && (
+              <span className="search-results-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 10px' }}>
+                Stack: {filterOwner}
+                <button 
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                  onClick={() => setFilterOwner(null)}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 11 }} />
+                </button>
+              </span>
+            )}
+            <button 
+              className="task-notes-btn task-notes-btn-cancel" 
+              style={{ fontSize: 10, padding: '2px 8px' }}
+              onClick={() => {
+                setFilterAssignee(null);
+                setFilterOwner(null);
+              }}
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
         {/* Task list */}
         <div className="dash-task-list">
           {searchQuery ? (
             <>
               <div className="search-results-header">
                 <span className="search-results-title">Search Results for &ldquo;{searchQuery}&rdquo;</span>
-                <span className="search-results-badge">{allMatches.length} matches</span>
+                <span className="search-results-badge">{filteredMatches.length} matches</span>
               </div>
-              {allMatches.map((match) => {
+              {filteredMatches.map((match) => {
                 const done = isTaskDone(match.sprintId, match.taskIdx);
                 const notesOpen = activeNotesKey === match.taskKey;
                 const assigneeId = getTaskAssignee(match.taskKey);
-                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+                const assignee = assigneeId ? users.find((m) => m.id === assigneeId) : null;
+                const isEditing = editingTaskKey === match.taskKey;
+
                 return (
                   <div key={match.taskKey} className={`dash-task${done ? ' done' : ''}`} style={{ flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '100%' }}>
-                      <button
-                        className={`dash-task-check${done ? ' checked' : ''}`}
-                        style={done ? { background: match.phaseColor, borderColor: match.phaseColor } : {}}
-                        onClick={() => {
-                          toggleTask(match.sprintId, match.taskIdx);
-                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
-                        }}
-                      >
-                        {done && (
-                          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        )}
-                      </button>
-                      <div className="dash-task-body">
-                        <div className="dash-task-text">
-                          <span className="search-task-sprint-badge" style={{ background: `${match.phaseColor}20`, color: match.phaseColor, border: `0.5px solid ${match.phaseColor}40` }}>
-                            S{match.sprintId}
-                          </span>
-                          {match.t}
-                        </div>
-                        <div className="dash-task-tags">
-                          <span className="dash-task-owner" style={{ borderColor: `${OWNER_COLORS[match.o] || '#888'}40`, color: OWNER_COLORS[match.o] || '#888' }}>
-                            {match.o}
-                          </span>
-                          {assignee && (
-                            <span className="dash-task-assignee">
-                              <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
-                              {assignee.name.split(' ')[0]}
-                            </span>
+                      {!isEditing && (
+                        <button
+                          className={`dash-task-check${done ? ' checked' : ''}`}
+                          style={done ? { background: match.phaseColor, borderColor: match.phaseColor } : {}}
+                          onClick={() => {
+                            toggleTask(match.sprintId, match.taskIdx);
+                            toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                          }}
+                        >
+                          {done && (
+                            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                           )}
-                          <TaskNoteIndicator taskKey={match.taskKey} />
+                        </button>
+                      )}
+
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: 8, flex: 1, alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            className="search-input"
+                            style={{ flex: 1, paddingLeft: 10 }}
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            autoFocus
+                          />
+                          <select
+                            className="search-input"
+                            style={{ width: 100, paddingLeft: 6, paddingRight: 6 }}
+                            value={editTaskOwner}
+                            onChange={(e) => setEditTaskOwner(e.target.value)}
+                          >
+                            {Object.keys(OWNER_COLORS).map((o) => (
+                              <option key={o} value={o}>{o}</option>
+                            ))}
+                          </select>
+                          <button
+                            className="task-notes-btn task-notes-btn-save"
+                            onClick={() => {
+                              if (!editTaskTitle.trim()) {
+                                toast('Task title cannot be empty', 'error');
+                                return;
+                              }
+                              editTask(match.taskKey, editTaskTitle, editTaskOwner);
+                              setEditingTaskKey(null);
+                              toast('Task updated successfully!', 'success');
+                            }}
+                          >
+                            <i className="ti ti-check" />
+                          </button>
+                          <button
+                            className="task-notes-btn task-notes-btn-cancel"
+                            onClick={() => setEditingTaskKey(null)}
+                          >
+                            <i className="ti ti-x" />
+                          </button>
                         </div>
-                      </div>
-                      <TaskAssign taskKey={match.taskKey} />
-                      <button
-                        className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : match.taskKey); }}
-                        title="Edit task notes"
-                      >
-                        <i className="ti ti-note" aria-hidden="true" />
-                      </button>
+                      ) : (
+                        <div className="dash-task-body" style={{ flex: 1 }}>
+                          <div className="dash-task-text">
+                            <span className="search-task-sprint-badge" style={{ background: `${match.phaseColor}20`, color: match.phaseColor, border: `0.5px solid ${match.phaseColor}40` }}>
+                              S{match.sprintId}
+                            </span>
+                            {match.t}
+                          </div>
+                          <div className="dash-task-tags">
+                            <span 
+                              className="dash-task-owner" 
+                              style={{ borderColor: `${OWNER_COLORS[match.o] || '#888'}40`, color: OWNER_COLORS[match.o] || '#888', cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterOwner(match.o);
+                              }}
+                              title={`Click to filter by ${match.o}`}
+                            >
+                              {match.o}
+                            </span>
+                            {assignee && (
+                              <span 
+                                className="dash-task-assignee"
+                                style={{ cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilterAssignee(assignee.id);
+                                }}
+                                title={`Click to filter by ${assignee.name}`}
+                              >
+                                <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
+                                {assignee.name.split(' ')[0]}
+                              </span>
+                            )}
+                            <TaskNoteIndicator taskKey={match.taskKey} />
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <>
+                          <TaskAssign taskKey={match.taskKey} />
+                          
+                          {/* Inline Edit Task Trigger */}
+                          <button
+                            className="task-notes-trigger-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTaskKey(match.taskKey);
+                              setEditTaskTitle(match.t);
+                              setEditTaskOwner(match.o);
+                            }}
+                            title="Edit task"
+                          >
+                            <i className="ti ti-pencil" aria-hidden="true" />
+                          </button>
+
+                          {/* Inline Delete Custom Task */}
+                          {match.isCustom && (
+                            <button
+                              className="task-notes-trigger-btn"
+                              style={{ color: 'var(--tf-red)', background: 'transparent' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this custom task?')) {
+                                  deleteCustomTask(match.sprintId, match.customIdx);
+                                  toast('Custom task deleted', 'info');
+                                }
+                              }}
+                              title="Delete task"
+                            >
+                              <i className="ti ti-trash" aria-hidden="true" />
+                            </button>
+                          )}
+
+                          <button
+                            className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : match.taskKey); }}
+                            title="Edit task notes"
+                          >
+                            <i className="ti ti-note" aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <TaskNotes taskKey={match.taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                    {!isEditing && <TaskNotes taskKey={match.taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />}
                   </div>
                 );
               })}
-              {allMatches.length === 0 && (
+              {filteredMatches.length === 0 && (
                 <div className="dash-empty">
                   <i className="ti ti-search" style={{ fontSize: 24, color: 'var(--color-text-tertiary)' }} aria-hidden="true" />
                   <p>No matching tasks found</p>
@@ -544,53 +761,153 @@ export default function DashboardPage() {
           ) : (
             <>
               {filteredTasks.map((task) => {
-                const origIdx = sprint.tasks.indexOf(task);
-                const done = isTaskDone(sprint.i, origIdx);
-                const taskKey = `sprint-${sprint.i}-task-${origIdx}`;
+                const done = isTaskDone(sprint.i, task.taskIdx);
+                const taskKey = task.taskKey;
                 const assigneeId = getTaskAssignee(taskKey);
-                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+                const assignee = assigneeId ? users.find((m) => m.id === assigneeId) : null;
                 const notesOpen = activeNotesKey === taskKey;
+                const isEditing = editingTaskKey === taskKey;
 
                 return (
-                  <div key={origIdx} className={`dash-task${done ? ' done' : ''}`} style={{ flexWrap: 'wrap' }}>
+                  <div key={taskKey} className={`dash-task${done ? ' done' : ''}`} style={{ flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '100%' }}>
-                      <button
-                        className={`dash-task-check${done ? ' checked' : ''}`}
-                        style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color } : {}}
-                        onClick={() => {
-                          toggleTask(sprint.i, origIdx);
-                          toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
-                        }}
-                      >
-                        {done && (
-                          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        )}
-                      </button>
-                      <div className="dash-task-body">
-                        <div className="dash-task-text">{task.t}</div>
-                        <div className="dash-task-tags">
-                          <span className="dash-task-owner" style={{ borderColor: `${OWNER_COLORS[task.o] || '#888'}40`, color: OWNER_COLORS[task.o] || '#888' }}>
-                            {task.o}
-                          </span>
-                          {assignee && (
-                            <span className="dash-task-assignee">
-                              <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
-                              {assignee.name.split(' ')[0]}
-                            </span>
+                      {!isEditing && (
+                        <button
+                          className={`dash-task-check${done ? ' checked' : ''}`}
+                          style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color } : {}}
+                          onClick={() => {
+                            toggleTask(sprint.i, task.taskIdx);
+                            toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
+                          }}
+                        >
+                          {done && (
+                            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                           )}
-                          <TaskNoteIndicator taskKey={taskKey} />
+                        </button>
+                      )}
+
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: 8, flex: 1, alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            className="search-input"
+                            style={{ flex: 1, paddingLeft: 10 }}
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            autoFocus
+                          />
+                          <select
+                            className="search-input"
+                            style={{ width: 100, paddingLeft: 6, paddingRight: 6 }}
+                            value={editTaskOwner}
+                            onChange={(e) => setEditTaskOwner(e.target.value)}
+                          >
+                            {Object.keys(OWNER_COLORS).map((o) => (
+                              <option key={o} value={o}>{o}</option>
+                            ))}
+                          </select>
+                          <button
+                            className="task-notes-btn task-notes-btn-save"
+                            onClick={() => {
+                              if (!editTaskTitle.trim()) {
+                                toast('Task title cannot be empty', 'error');
+                                return;
+                              }
+                              editTask(taskKey, editTaskTitle, editTaskOwner);
+                              setEditingTaskKey(null);
+                              toast('Task updated successfully!', 'success');
+                            }}
+                          >
+                            <i className="ti ti-check" />
+                          </button>
+                          <button
+                            className="task-notes-btn task-notes-btn-cancel"
+                            onClick={() => setEditingTaskKey(null)}
+                          >
+                            <i className="ti ti-x" />
+                          </button>
                         </div>
-                      </div>
-                      <TaskAssign taskKey={taskKey} />
-                      <button
-                        className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : taskKey); }}
-                        title="Edit task notes"
-                      >
-                        <i className="ti ti-note" aria-hidden="true" />
-                      </button>
+                      ) : (
+                        <div className="dash-task-body" style={{ flex: 1 }}>
+                          <div className="dash-task-text">{task.t}</div>
+                          <div className="dash-task-tags">
+                            <span 
+                              className="dash-task-owner" 
+                              style={{ borderColor: `${OWNER_COLORS[task.o] || '#888'}40`, color: OWNER_COLORS[task.o] || '#888', cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterOwner(task.o);
+                              }}
+                              title={`Click to filter by ${task.o}`}
+                            >
+                              {task.o}
+                            </span>
+                            {assignee && (
+                              <span 
+                                className="dash-task-assignee"
+                                style={{ cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilterAssignee(assignee.id);
+                                }}
+                                title={`Click to filter by ${assignee.name}`}
+                              >
+                                <span className={`dash-task-avatar ${assignee.avatarColor}`}>{assignee.avatar}</span>
+                                {assignee.name.split(' ')[0]}
+                              </span>
+                            )}
+                            <TaskNoteIndicator taskKey={taskKey} />
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <>
+                          <TaskAssign taskKey={taskKey} />
+                          
+                          {/* Inline Edit Task Trigger */}
+                          <button
+                            className="task-notes-trigger-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTaskKey(taskKey);
+                              setEditTaskTitle(task.t);
+                              setEditTaskOwner(task.o);
+                            }}
+                            title="Edit task"
+                          >
+                            <i className="ti ti-pencil" aria-hidden="true" />
+                          </button>
+
+                          {/* Inline Delete Custom Task */}
+                          {task.isCustom && (
+                            <button
+                              className="task-notes-trigger-btn"
+                              style={{ color: 'var(--tf-red)', background: 'transparent' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this custom task?')) {
+                                  deleteCustomTask(sprint.i, task.customIdx);
+                                  toast('Custom task deleted', 'info');
+                                }
+                              }}
+                              title="Delete task"
+                            >
+                              <i className="ti ti-trash" aria-hidden="true" />
+                            </button>
+                          )}
+
+                          <button
+                            className={`task-notes-trigger-btn${notesOpen ? ' active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); setActiveNotesKey(notesOpen ? null : taskKey); }}
+                            title="Edit task notes"
+                          >
+                            <i className="ti ti-note" aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <TaskNotes taskKey={taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />
+                    {!isEditing && <TaskNotes taskKey={taskKey} isOpen={notesOpen} onClose={() => setActiveNotesKey(null)} />}
                   </div>
                 );
               })}
@@ -602,6 +919,65 @@ export default function DashboardPage() {
               )}
             </>
           )}
+
+          {/* Add Custom Task Form/Button */}
+          <div style={{ marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+            {showAddForm ? (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 'var(--border-radius-md)', padding: 10 }}>
+                <input
+                  type="text"
+                  className="search-input"
+                  style={{ flex: 1, paddingLeft: 10 }}
+                  placeholder="Enter new task description..."
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  autoFocus
+                />
+                <select
+                  className="search-input"
+                  style={{ width: 120, paddingLeft: 6, paddingRight: 6 }}
+                  value={newTaskOwner}
+                  onChange={(e) => setNewTaskOwner(e.target.value)}
+                >
+                  {Object.keys(OWNER_COLORS).map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+                <button
+                  className="task-notes-btn task-notes-btn-save"
+                  onClick={() => {
+                    if (!newTaskTitle.trim()) {
+                      toast('Please enter a task description', 'error');
+                      return;
+                    }
+                    addCustomTask(sprint.i, newTaskTitle, newTaskOwner);
+                    setNewTaskTitle('');
+                    setShowAddForm(false);
+                    toast('Custom task added!', 'success');
+                  }}
+                >
+                  Add Task
+                </button>
+                <button
+                  className="task-notes-btn task-notes-btn-cancel"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewTaskTitle('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                className="task-notes-btn task-notes-btn-cancel"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 12px' }}
+                onClick={() => setShowAddForm(true)}
+              >
+                <i className="ti ti-plus" /> Add Custom Task
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Bottom panels: Owner breakdown + Team workload */}
@@ -661,7 +1037,13 @@ export default function DashboardPage() {
           <div className="dash-panel">
             <h3 className="dash-panel-title"><i className="ti ti-chart-bar" aria-hidden="true" /> Owner Breakdown</h3>
             {Object.entries(ownerCounts).map(([owner, { total, done }]) => (
-              <div key={owner} className="dash-owner-row">
+              <div 
+                key={owner} 
+                className="dash-owner-row" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => setFilterOwner(owner)}
+                title={`Click to filter by ${owner}`}
+              >
                 <span className="dash-owner-name" style={{ color: OWNER_COLORS[owner] || '#888' }}>{owner}</span>
                 <div className="dash-owner-bar-track">
                   <div className="dash-owner-bar-fill" style={{ width: `${(done / total) * 100}%`, background: OWNER_COLORS[owner] || '#888' }} />
@@ -674,7 +1056,13 @@ export default function DashboardPage() {
           <div className="dash-panel">
             <h3 className="dash-panel-title"><i className="ti ti-users" aria-hidden="true" /> Team Workload</h3>
             {users.map((m) => (
-              <div key={m.id} className="dash-team-row">
+              <div 
+                key={m.id} 
+                className="dash-team-row"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setFilterAssignee(m.id)}
+                title={`Click to filter tasks assigned to ${m.name}`}
+              >
                 <span className={`dash-team-avatar ${m.avatarColor}`}>{m.avatar}</span>
                 <span className="dash-team-name">{m.name}</span>
                 <span className="dash-team-role">{m.role}</span>

@@ -1,12 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 const KV_PREFIX = 'tf:progress:';
 
+const FALLBACK_FILE = path.join(process.cwd(), '.next', 'kv_fallback_progress.json');
+
+function readFallbackProgress(): Record<string, unknown> {
+  try {
+    if (fs.existsSync(FALLBACK_FILE)) {
+      const data = fs.readFileSync(FALLBACK_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to read fallback progress:', e);
+  }
+  return {};
+}
+
+function writeFallbackProgress(store: Record<string, unknown>) {
+  try {
+    const dir = path.dirname(FALLBACK_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(FALLBACK_FILE, JSON.stringify(store, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to write fallback progress:', e);
+  }
+}
+
 /* ─── KV client (lazy init, graceful fallback) ─────────── */
 let kvClient: { get: (k: string) => Promise<unknown>; set: (k: string, v: unknown) => Promise<unknown> } | null = null;
-
-// In-memory fallback for local dev without KV configured
-const memoryStore = new Map<string, unknown>();
+const fallbackStore = readFallbackProgress();
 
 function getKV() {
   if (kvClient) return kvClient;
@@ -20,15 +46,18 @@ function getKV() {
       console.log('[progress] Using Vercel KV');
       return kvClient!;
     } catch {
-      console.log('[progress] @vercel/kv not available, using memory store');
+      console.log('[progress] @vercel/kv not available, using fallback store');
     }
   }
 
-  // Fallback: in-memory store (works for local dev, resets on restart)
-  console.log('[progress] KV env vars missing, using in-memory store');
+  // Fallback: file-based store (works for local dev, persists on restart)
+  console.log('[progress] KV env vars missing, using file-based fallback store');
   kvClient = {
-    get: async (key: string) => memoryStore.get(key) ?? null,
-    set: async (key: string, value: unknown) => { memoryStore.set(key, value); },
+    get: async (key: string) => fallbackStore[key] ?? null,
+    set: async (key: string, value: unknown) => {
+      fallbackStore[key] = value;
+      writeFallbackProgress(fallbackStore);
+    },
   };
   return kvClient!;
 }

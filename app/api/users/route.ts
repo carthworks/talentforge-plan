@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 const KV_USERS_KEY = 'tf:users_list';
 
@@ -20,9 +22,35 @@ const INITIAL_USERS: DBUser[] = [
   { id: 'u5', name: 'Ganesh', email: 'devops@talentforge.in', role: 'devops', avatar: 'GR', avatarColor: 'av-blue', password: 'tf2025' }
 ];
 
+const FALLBACK_FILE = path.join(process.cwd(), '.next', 'kv_fallback_users.json');
+
+function readFallbackUsers(): DBUser[] | null {
+  try {
+    if (fs.existsSync(FALLBACK_FILE)) {
+      const data = fs.readFileSync(FALLBACK_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to read fallback users:', e);
+  }
+  return null;
+}
+
+function writeFallbackUsers(users: DBUser[]) {
+  try {
+    const dir = path.dirname(FALLBACK_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(FALLBACK_FILE, JSON.stringify(users, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to write fallback users:', e);
+  }
+}
+
 /* ─── KV client (lazy init, graceful fallback) ─────────── */
 let kvClient: { get: (k: string) => Promise<unknown>; set: (k: string, v: unknown) => Promise<unknown> } | null = null;
-let memoryStore = [...INITIAL_USERS];
+let memoryStore = readFallbackUsers() || [...INITIAL_USERS];
 
 function getKV() {
   if (kvClient) return kvClient;
@@ -38,12 +66,13 @@ function getKV() {
     }
   }
 
-  console.log('[users] KV env vars missing, using in-memory store');
+  console.log('[users] KV env vars missing, using file-based fallback store');
   kvClient = {
     get: async (key: string) => memoryStore,
     set: async (key: string, value: unknown) => {
       if (Array.isArray(value)) {
         memoryStore = value as DBUser[];
+        writeFallbackUsers(memoryStore);
       }
     },
   };

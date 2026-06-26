@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import TaskAssign from '@/components/TaskAssign';
 import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
@@ -237,33 +237,53 @@ export default function SprintsPage() {
   const { users } = useAuth();
   const [activePhase, setActivePhase] = useState(0);
   const [activeSprint, setActiveSprint] = useState(0);
-  const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee } = useStore();
+  const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee, progress } = useStore();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeNotesKey, setActiveNotesKey] = useState<string | null>(null);
 
+  // Task list resolver combining static and custom tasks with overrides
+  const getSprintTasks = useCallback((sprintId: number) => {
+    const sprintObj = ALL_SPRINTS.find((s) => s.i === sprintId);
+    if (!sprintObj) return [];
+    const staticTasks = sprintObj.tasks;
+    const customTasks = progress.customTasks?.[sprintId] || [];
+    
+    return [...staticTasks, ...customTasks].map((task, idx) => {
+      const taskKey = `sprint-${sprintId}-task-${idx}`;
+      const edited = progress.editedTasks?.[taskKey];
+      return {
+        t: edited?.t ?? task.t,
+        o: edited?.o ?? task.o,
+        isCustom: idx >= staticTasks.length,
+        customIdx: idx >= staticTasks.length ? idx - staticTasks.length : -1,
+        taskIdx: idx,
+        taskKey,
+      };
+    });
+  }, [progress.customTasks, progress.editedTasks]);
+
   const phase = PHASES[activePhase];
   const sprint = phase.sprints[activeSprint];
-  const sprintProg = getSprintProgress(sprint.i, sprint.tasks.length);
+  const currentSprintTasks = getSprintTasks(sprint.i);
+  const sprintProg = getSprintProgress(sprint.i, currentSprintTasks.length);
 
   const allMatches = useMemo(() => {
     if (!searchQuery) return [];
     return ALL_SPRINTS.flatMap((s) =>
-      s.tasks
-        .map((task, idx) => ({
-          sprintId: s.i,
-          taskIdx: idx,
-          taskKey: `sprint-${s.i}-task-${idx}`,
-          phaseColor: s.phase.color,
-          t: task.t,
-          o: task.o,
-        }))
-        .filter((match) =>
-          match.t.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          match.o.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+      getSprintTasks(s.i).map((task) => ({
+        sprintId: s.i,
+        taskIdx: task.taskIdx,
+        taskKey: task.taskKey,
+        phaseColor: s.phase.color,
+        t: task.t,
+        o: task.o,
+      }))
+    ).filter((match) =>
+      match.t.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.o.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, getSprintTasks]);
 
   return (
     <main className="page">
@@ -477,16 +497,16 @@ export default function SprintsPage() {
               )}
             </>
           ) : (
-            sprint.tasks.map((task, i) => {
-              const done = isTaskDone(sprint.i, i);
-              const taskKey = `sprint-${sprint.i}-task-${i}`;
+            currentSprintTasks.map((task) => {
+              const done = isTaskDone(sprint.i, task.taskIdx);
+              const taskKey = task.taskKey;
               const notesOpen = activeNotesKey === taskKey;
               const assigneeId = getTaskAssignee(taskKey);
               const assignee = assigneeId ? users.find((m) => m.id === assigneeId) : null;
 
               return (
                 <div
-                  key={i}
+                  key={taskKey}
                   className={`task-row${done ? ' done' : ''}`}
                   style={{ flexWrap: 'wrap', cursor: 'default' }}
                 >
@@ -495,7 +515,7 @@ export default function SprintsPage() {
                       className={`task-checkbox${done ? ' checked' : ''}`}
                       style={done ? { background: phase.color, borderColor: phase.color, cursor: 'pointer' } : { cursor: 'pointer' }}
                       onClick={() => {
-                        toggleTask(sprint.i, i);
+                        toggleTask(sprint.i, task.taskIdx);
                         toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                       }}
                     >
@@ -510,7 +530,7 @@ export default function SprintsPage() {
                       className="task-text"
                       style={{ cursor: 'pointer', flex: 1 }}
                       onClick={() => {
-                        toggleTask(sprint.i, i);
+                        toggleTask(sprint.i, task.taskIdx);
                         toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                       }}
                     >

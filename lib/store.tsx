@@ -10,12 +10,19 @@ export interface TaskAssignment {
   assignedAt: string;    // ISO timestamp
 }
 
+export interface CustomTask {
+  t: string; // title
+  o: string; // owner (stack)
+}
+
 export interface SprintProgress {
   currentSprintId: number;       // active sprint number
   currentPhaseId: number;        // active phase index
   completedTasks: Record<number, number[]>; // sprintId → task indices
   assignments: TaskAssignment[];
   notes: Record<string, string>; // taskKey → note
+  customTasks?: Record<number, CustomTask[]>; // sprintId → custom tasks list
+  editedTasks?: Record<string, CustomTask>; // taskKey → edited values
 }
 
 const DEFAULT_PROGRESS: SprintProgress = {
@@ -24,6 +31,8 @@ const DEFAULT_PROGRESS: SprintProgress = {
   completedTasks: {},
   assignments: [],
   notes: {},
+  customTasks: {},
+  editedTasks: {},
 };
 
 /* ─── Server sync helpers ──────────────────────────────── */
@@ -66,6 +75,9 @@ interface StoreCtx {
   setTaskNote: (taskKey: string, note: string) => void;
   getTaskNote: (taskKey: string) => string;
   getOverallProgress: () => { totalDone: number; totalTasks: number; pct: number };
+  addCustomTask: (sprintId: number, t: string, o: string) => void;
+  editTask: (taskKey: string, t: string, o: string) => void;
+  deleteCustomTask: (sprintId: number, customIdx: number) => void;
   isSyncing: boolean;
 }
 
@@ -81,6 +93,9 @@ const StoreContext = createContext<StoreCtx>({
   setTaskNote: () => {},
   getTaskNote: () => '',
   getOverallProgress: () => ({ totalDone: 0, totalTasks: 0, pct: 0 }),
+  addCustomTask: () => {},
+  editTask: () => {},
+  deleteCustomTask: () => {},
   isSyncing: false,
 });
 
@@ -200,9 +215,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getOverallProgress = useCallback(() => {
     const totalDone = Object.values(progress.completedTasks).reduce((sum, arr) => sum + arr.length, 0);
-    const totalTasks = 148;
+    const totalCustomTasks = Object.values(progress.customTasks || {}).reduce((sum, arr) => sum + arr.length, 0);
+    const totalTasks = 148 + totalCustomTasks;
     return { totalDone, totalTasks, pct: Math.round((totalDone / totalTasks) * 100) };
-  }, [progress.completedTasks]);
+  }, [progress.completedTasks, progress.customTasks]);
+
+  const addCustomTask = useCallback((sprintId: number, t: string, o: string) => {
+    setProgress((prev) => {
+      const customs = prev.customTasks || {};
+      const currentList = customs[sprintId] || [];
+      return {
+        ...prev,
+        customTasks: {
+          ...customs,
+          [sprintId]: [...currentList, { t, o }],
+        },
+      };
+    });
+  }, []);
+
+  const editTask = useCallback((taskKey: string, t: string, o: string) => {
+    setProgress((prev) => {
+      const edited = prev.editedTasks || {};
+      return {
+        ...prev,
+        editedTasks: {
+          ...edited,
+          [taskKey]: { t, o },
+        },
+      };
+    });
+  }, []);
+
+  const deleteCustomTask = useCallback((sprintId: number, customIdx: number) => {
+    setProgress((prev) => {
+      const customs = prev.customTasks || {};
+      const currentList = customs[sprintId] || [];
+      const nextList = currentList.filter((_, idx) => idx !== customIdx);
+      return {
+        ...prev,
+        customTasks: {
+          ...customs,
+          [sprintId]: nextList,
+        },
+      };
+    });
+  }, []);
 
   return (
     <StoreContext.Provider
@@ -218,6 +276,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setTaskNote,
         getTaskNote,
         getOverallProgress,
+        addCustomTask,
+        editTask,
+        deleteCustomTask,
         isSyncing,
       }}
     >
