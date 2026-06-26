@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import TaskAssign from '@/components/TaskAssign';
 import TaskNotes, { TaskNoteIndicator } from '@/components/TaskNotes';
 import { useToast } from '@/components/Toast';
-import { TEAM_MEMBERS } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 
 const OWNER_COLORS: Record<string, string> = {
   DevOps: '#5BA3E0', BE: '#1D9E75', 'AI/ML': '#9B93F0', FE: '#D85A30',
@@ -234,6 +234,7 @@ type Sprint = (typeof PHASES)[number]['sprints'][number];
 const ALL_SPRINTS = PHASES.flatMap((p) => p.sprints.map((s) => ({ ...s, phase: p })));
 
 export default function SprintsPage() {
+  const { users } = useAuth();
   const [activePhase, setActivePhase] = useState(0);
   const [activeSprint, setActiveSprint] = useState(0);
   const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee } = useStore();
@@ -400,7 +401,7 @@ export default function SprintsPage() {
                 const taskKey = match.taskKey;
                 const notesOpen = activeNotesKey === taskKey;
                 const assigneeId = getTaskAssignee(taskKey);
-                const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+                const assignee = assigneeId ? users.find((m) => m.id === assigneeId) : null;
 
                 return (
                   <div
@@ -481,7 +482,7 @@ export default function SprintsPage() {
               const taskKey = `sprint-${sprint.i}-task-${i}`;
               const notesOpen = activeNotesKey === taskKey;
               const assigneeId = getTaskAssignee(taskKey);
-              const assignee = assigneeId ? TEAM_MEMBERS.find((m) => m.id === assigneeId) : null;
+              const assignee = assigneeId ? users.find((m) => m.id === assigneeId) : null;
 
               return (
                 <div

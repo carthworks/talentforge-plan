@@ -232,7 +232,7 @@ const OWNER_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, users } = useAuth();
   const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee, getOverallProgress, progress } = useStore();
   const { toast } = useToast();
   const [selectedSprint, setSelectedSprint] = useState(progress.currentSprintId);
@@ -268,7 +268,7 @@ export default function DashboardPage() {
   });
 
   // Team workload: count assigned tasks per team member
-  const workload = TEAM_MEMBERS.reduce<Record<string, number>>((acc, m) => {
+  const workload = users.reduce<Record<string, number>>((acc, m) => {
     acc[m.id] = progress.assignments.filter((a) => a.assigneeId === m.id).length;
     return acc;
   }, {});
@@ -673,7 +673,7 @@ export default function DashboardPage() {
 
           <div className="dash-panel">
             <h3 className="dash-panel-title"><i className="ti ti-users" aria-hidden="true" /> Team Workload</h3>
-            {TEAM_MEMBERS.map((m) => (
+            {users.map((m) => (
               <div key={m.id} className="dash-team-row">
                 <span className={`dash-team-avatar ${m.avatarColor}`}>{m.avatar}</span>
                 <span className="dash-team-name">{m.name}</span>

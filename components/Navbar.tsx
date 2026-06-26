@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   // { href: '/', label: 'Home', icon: 'ti-home' },
   { href: '/dashboard', label: 'Dashboard', icon: 'ti-layout-dashboard' },
   { href: '/sprints', label: 'Sprints', icon: 'ti-list-check' },
+  { href: '/users', label: 'Users', icon: 'ti-users' },
+  { href: '/reports', label: 'Reports', icon: 'ti-chart-bar' },
   { href: '/sprint-1', label: 'Sprint 1', icon: 'ti-server' },
   { href: '/sprint-15', label: 'Sprint 15', icon: 'ti-certificate' },
   { href: '/phase-1', label: 'Phase 1', icon: 'ti-microscope' },

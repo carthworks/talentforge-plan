@@ -2,17 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { TEAM_MEMBERS, User } from '@/lib/auth';
+import { useAuth, User } from '@/lib/auth';
 import { useToast } from './Toast';
 
 export default function TaskAssign({ taskKey }: { taskKey: string }) {
+  const { users } = useAuth();
   const { getTaskAssignee, assignTask, unassignTask } = useStore();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const assigneeId = getTaskAssignee(taskKey);
-  const assignee = assigneeId ? TEAM_MEMBERS.find((u) => u.id === assigneeId) : null;
+  const assignee = assigneeId ? users.find((u) => u.id === assigneeId) : null;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function TaskAssign({ taskKey }: { taskKey: string }) {
 
       {open && (
         <div className="assign-dropdown" onClick={(e) => e.stopPropagation()}>
-          {TEAM_MEMBERS.map((user) => (
+          {users.map((user) => (
             <button
               key={user.id}
               className="assign-dropdown-item"

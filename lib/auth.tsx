@@ -41,39 +41,91 @@ export const TEAM_MEMBERS: User[] = Object.values(STATIC_USERS).map((u) => u.use
 /* ─── Auth context ─────────────────────────────────────── */
 interface AuthCtx {
   user: User | null;
+  users: User[];
   isLoading: boolean;
   login: (email: string, password: string) => string | null; // returns error or null
   logout: () => void;
+  addUser: (name: string, email: string, role: User['role'], password?: string) => Promise<{ success: boolean; error?: string }>;
+  updateUser: (id: string, name: string, email: string, role: User['role'], password?: string) => Promise<{ success: boolean; error?: string }>;
+  deleteUser: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthCtx>({
   user: null,
+  users: TEAM_MEMBERS,
   isLoading: true,
   login: () => 'Not initialized',
   logout: () => {},
+  addUser: async () => ({ success: false, error: 'Not initialized' }),
+  updateUser: async () => ({ success: false, error: 'Not initialized' }),
+  deleteUser: async () => ({ success: false, error: 'Not initialized' }),
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hydrate from localStorage
+  // Fetch users from database
+  const refreshUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.users) {
+          setUsers(data.users);
+          return data.users as User[];
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch users:', e);
+    }
+    return null;
+  };
+
+  // Hydrate from localStorage first, then sync users
   useEffect(() => {
+    let activeUser: User | null = null;
     try {
       const stored = localStorage.getItem('tf_auth');
       if (stored) {
-        setUser(JSON.parse(stored));
+        activeUser = JSON.parse(stored);
+        setUser(activeUser);
       }
     } catch { /* ignore */ }
-    setIsLoading(false);
+
+    refreshUsers().then((fetchedUsers) => {
+      if (fetchedUsers && activeUser) {
+        // Update active user in session if their role/name changed in db
+        const updatedActive = fetchedUsers.find(u => u.id === activeUser?.id);
+        if (updatedActive) {
+          setUser(updatedActive);
+          localStorage.setItem('tf_auth', JSON.stringify(updatedActive));
+        }
+      }
+      setIsLoading(false);
+    });
   }, []);
 
   const login = (email: string, password: string): string | null => {
-    const entry = STATIC_USERS[email.toLowerCase().trim()];
-    if (!entry) return 'User not found';
-    if (entry.password !== password) return 'Incorrect password';
-    setUser(entry.user);
-    localStorage.setItem('tf_auth', JSON.stringify(entry.user));
+    const cleanedEmail = email.toLowerCase().trim();
+    // Search in dynamic users
+    const matchedUser = users.find((u) => u.email.toLowerCase() === cleanedEmail);
+    if (!matchedUser) {
+      // Fallback check in static configuration if not fetched yet
+      const entry = STATIC_USERS[cleanedEmail];
+      if (!entry) return 'User not found';
+      if (entry.password !== password) return 'Incorrect password';
+      setUser(entry.user);
+      localStorage.setItem('tf_auth', JSON.stringify(entry.user));
+      return null;
+    }
+
+    const dbPassword = (matchedUser as any).password || 'tf2025';
+    if (dbPassword !== password) return 'Incorrect password';
+
+    setUser(matchedUser);
+    localStorage.setItem('tf_auth', JSON.stringify(matchedUser));
     return null;
   };
 
@@ -82,11 +134,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tf_auth');
   };
 
+  const addUser = async (name: string, email: string, role: User['role'], password = 'tf2025') => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to add user' };
+      }
+      await refreshUsers();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: 'Network error occurred' };
+    }
+  };
+
+  const updateUser = async (id: string, name: string, email: string, role: User['role'], password?: string) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, email, role, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to update user' };
+      }
+      await refreshUsers();
+      
+      // If updating current logged in user, refresh their session
+      if (user && user.id === id) {
+        const updatedUser = data.user;
+        setUser(updatedUser);
+        localStorage.setItem('tf_auth', JSON.stringify(updatedUser));
+      }
+
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: 'Network error occurred' };
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    try {
+      const res = await fetch(`/api/users?id=${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to delete user' };
+      }
+      await refreshUsers();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: 'Network error occurred' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, users: users.length > 0 ? users : TEAM_MEMBERS, isLoading, login, logout, addUser, updateUser, deleteUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => useContext(AuthContext);
+
