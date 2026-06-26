@@ -234,7 +234,7 @@ type Sprint = (typeof PHASES)[number]['sprints'][number];
 const ALL_SPRINTS = PHASES.flatMap((p) => p.sprints.map((s) => ({ ...s, phase: p })));
 
 export default function SprintsPage() {
-  const { users } = useAuth();
+  const { user, users } = useAuth();
   const [activePhase, setActivePhase] = useState(0);
   const [activeSprint, setActiveSprint] = useState(0);
   const { toggleTask, isTaskDone, getSprintProgress, setCurrentSprint, getTaskAssignee, progress } = useStore();
@@ -432,8 +432,12 @@ export default function SprintsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                       <div
                         className={`task-checkbox${done ? ' checked' : ''}`}
-                        style={done ? { background: match.phaseColor, borderColor: match.phaseColor, cursor: 'pointer' } : { cursor: 'pointer' }}
+                        style={done ? { background: match.phaseColor, borderColor: match.phaseColor, cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' } : { cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' }}
                         onClick={() => {
+                          if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                            toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                            return;
+                          }
                           toggleTask(match.sprintId, match.taskIdx);
                           toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                         }}
@@ -447,8 +451,12 @@ export default function SprintsPage() {
 
                       <span
                         className="task-text"
-                        style={{ cursor: 'pointer', flex: 1 }}
+                        style={{ cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'default', flex: 1 }}
                         onClick={() => {
+                          if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                            toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                            return;
+                          }
                           toggleTask(match.sprintId, match.taskIdx);
                           toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                         }}
@@ -513,8 +521,12 @@ export default function SprintsPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
                     <div
                       className={`task-checkbox${done ? ' checked' : ''}`}
-                      style={done ? { background: phase.color, borderColor: phase.color, cursor: 'pointer' } : { cursor: 'pointer' }}
+                      style={done ? { background: phase.color, borderColor: phase.color, cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' } : { cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' }}
                       onClick={() => {
+                        if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                          toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                          return;
+                        }
                         toggleTask(sprint.i, task.taskIdx);
                         toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                       }}
@@ -528,8 +540,12 @@ export default function SprintsPage() {
 
                     <span
                       className="task-text"
-                      style={{ cursor: 'pointer', flex: 1 }}
+                      style={{ cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'default', flex: 1 }}
                       onClick={() => {
+                        if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                          toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                          return;
+                        }
                         toggleTask(sprint.i, task.taskIdx);
                         toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                       }}

@@ -233,6 +233,7 @@ const OWNER_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { user, users } = useAuth();
+  const canManageTasks = user?.role === 'admin' || user?.role === 'pm';
   const { 
     toggleTask, 
     isTaskDone, 
@@ -609,8 +610,12 @@ export default function DashboardPage() {
                       {!isEditing && (
                         <button
                           className={`dash-task-check${done ? ' checked' : ''}`}
-                          style={done ? { background: match.phaseColor, borderColor: match.phaseColor } : {}}
+                          style={done ? { background: match.phaseColor, borderColor: match.phaseColor, cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' } : { cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' }}
                           onClick={() => {
+                            if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                              toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                              return;
+                            }
                             toggleTask(match.sprintId, match.taskIdx);
                             toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                           }}
@@ -706,21 +711,23 @@ export default function DashboardPage() {
                           <TaskAssign taskKey={match.taskKey} />
                           
                           {/* Inline Edit Task Trigger */}
-                          <button
-                            className="task-notes-trigger-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTaskKey(match.taskKey);
-                              setEditTaskTitle(match.t);
-                              setEditTaskOwner(match.o);
-                            }}
-                            title="Edit task"
-                          >
-                            <i className="ti ti-pencil" aria-hidden="true" />
-                          </button>
+                          {canManageTasks && (
+                            <button
+                              className="task-notes-trigger-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTaskKey(match.taskKey);
+                                setEditTaskTitle(match.t);
+                                setEditTaskOwner(match.o);
+                              }}
+                              title="Edit task"
+                            >
+                              <i className="ti ti-pencil" aria-hidden="true" />
+                            </button>
+                          )}
 
                           {/* Inline Delete Custom Task */}
-                          {match.isCustom && (
+                          {canManageTasks && match.isCustom && (
                             <button
                               className="task-notes-trigger-btn"
                               style={{ color: 'var(--tf-red)', background: 'transparent' }}
@@ -774,8 +781,12 @@ export default function DashboardPage() {
                       {!isEditing && (
                         <button
                           className={`dash-task-check${done ? ' checked' : ''}`}
-                          style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color } : {}}
+                          style={done ? { background: sprint.phase.color, borderColor: sprint.phase.color, cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' } : { cursor: (user?.role === 'admin' || user?.role === 'pm' || assigneeId === user?.id) ? 'pointer' : 'not-allowed' }}
                           onClick={() => {
+                            if (user?.role !== 'admin' && user?.role !== 'pm' && assigneeId !== user?.id) {
+                              toast('Only the assignee, a PM, or an administrator can toggle task completion.', 'error');
+                              return;
+                            }
                             toggleTask(sprint.i, task.taskIdx);
                             toast(!done ? 'Task completed!' : 'Task marked incomplete', 'success');
                           }}
@@ -866,21 +877,23 @@ export default function DashboardPage() {
                           <TaskAssign taskKey={taskKey} />
                           
                           {/* Inline Edit Task Trigger */}
-                          <button
-                            className="task-notes-trigger-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTaskKey(taskKey);
-                              setEditTaskTitle(task.t);
-                              setEditTaskOwner(task.o);
-                            }}
-                            title="Edit task"
-                          >
-                            <i className="ti ti-pencil" aria-hidden="true" />
-                          </button>
+                          {canManageTasks && (
+                            <button
+                              className="task-notes-trigger-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTaskKey(taskKey);
+                                setEditTaskTitle(task.t);
+                                setEditTaskOwner(task.o);
+                              }}
+                              title="Edit task"
+                            >
+                              <i className="ti ti-pencil" aria-hidden="true" />
+                            </button>
+                          )}
 
                           {/* Inline Delete Custom Task */}
-                          {task.isCustom && (
+                          {canManageTasks && task.isCustom && (
                             <button
                               className="task-notes-trigger-btn"
                               style={{ color: 'var(--tf-red)', background: 'transparent' }}
@@ -921,63 +934,65 @@ export default function DashboardPage() {
           )}
 
           {/* Add Custom Task Form/Button */}
-          <div style={{ marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-            {showAddForm ? (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 'var(--border-radius-md)', padding: 10 }}>
-                <input
-                  type="text"
-                  className="search-input"
-                  style={{ flex: 1, paddingLeft: 10 }}
-                  placeholder="Enter new task description..."
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  autoFocus
-                />
-                <select
-                  className="search-input"
-                  style={{ width: 120, paddingLeft: 6, paddingRight: 6 }}
-                  value={newTaskOwner}
-                  onChange={(e) => setNewTaskOwner(e.target.value)}
-                >
-                  {Object.keys(OWNER_COLORS).map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-                <button
-                  className="task-notes-btn task-notes-btn-save"
-                  onClick={() => {
-                    if (!newTaskTitle.trim()) {
-                      toast('Please enter a task description', 'error');
-                      return;
-                    }
-                    addCustomTask(sprint.i, newTaskTitle, newTaskOwner);
-                    setNewTaskTitle('');
-                    setShowAddForm(false);
-                    toast('Custom task added!', 'success');
-                  }}
-                >
-                  Add Task
-                </button>
+          {canManageTasks && (
+            <div style={{ marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+              {showAddForm ? (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 'var(--border-radius-md)', padding: 10 }}>
+                  <input
+                    type="text"
+                    className="search-input"
+                    style={{ flex: 1, paddingLeft: 10 }}
+                    placeholder="Enter new task description..."
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    autoFocus
+                  />
+                  <select
+                    className="search-input"
+                    style={{ width: 120, paddingLeft: 6, paddingRight: 6 }}
+                    value={newTaskOwner}
+                    onChange={(e) => setNewTaskOwner(e.target.value)}
+                  >
+                    {Object.keys(OWNER_COLORS).map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="task-notes-btn task-notes-btn-save"
+                    onClick={() => {
+                      if (!newTaskTitle.trim()) {
+                        toast('Please enter a task description', 'error');
+                        return;
+                      }
+                      addCustomTask(sprint.i, newTaskTitle, newTaskOwner);
+                      setNewTaskTitle('');
+                      setShowAddForm(false);
+                      toast('Custom task added!', 'success');
+                    }}
+                  >
+                    Add Task
+                  </button>
+                  <button
+                    className="task-notes-btn task-notes-btn-cancel"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewTaskTitle('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
                 <button
                   className="task-notes-btn task-notes-btn-cancel"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewTaskTitle('');
-                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 12px' }}
+                  onClick={() => setShowAddForm(true)}
                 >
-                  Cancel
+                  <i className="ti ti-plus" /> Add Custom Task
                 </button>
-              </div>
-            ) : (
-              <button
-                className="task-notes-btn task-notes-btn-cancel"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 12px' }}
-                onClick={() => setShowAddForm(true)}
-              >
-                <i className="ti ti-plus" /> Add Custom Task
-              </button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Bottom panels: Owner breakdown + Team workload */}

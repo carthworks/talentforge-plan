@@ -6,7 +6,7 @@ import { useAuth, User } from '@/lib/auth';
 import { useToast } from './Toast';
 
 export default function TaskAssign({ taskKey }: { taskKey: string }) {
-  const { users } = useAuth();
+  const { user, users } = useAuth();
   const { getTaskAssignee, assignTask, unassignTask } = useStore();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -14,6 +14,8 @@ export default function TaskAssign({ taskKey }: { taskKey: string }) {
 
   const assigneeId = getTaskAssignee(taskKey);
   const assignee = assigneeId ? users.find((u) => u.id === assigneeId) : null;
+
+  const canAssign = user?.role === 'admin' || user?.role === 'pm';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -42,8 +44,16 @@ export default function TaskAssign({ taskKey }: { taskKey: string }) {
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         className={`assign-btn${assignee ? ' assigned' : ''}`}
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        title={assignee ? `Assigned to ${assignee.name}` : 'Assign team member'}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!canAssign) {
+            toast('Only administrators or project managers can assign tasks.', 'error');
+            return;
+          }
+          setOpen(!open);
+        }}
+        title={assignee ? `Assigned to ${assignee.name}` : canAssign ? 'Assign team member' : 'Unassigned'}
+        style={{ cursor: canAssign ? 'pointer' : 'default' }}
       >
         {assignee ? (
           <>
@@ -54,8 +64,17 @@ export default function TaskAssign({ taskKey }: { taskKey: string }) {
           </>
         ) : (
           <>
-            <i className="ti ti-user-plus" style={{ fontSize: 10 }} aria-hidden="true" />
-            Assign
+            {canAssign ? (
+              <>
+                <i className="ti ti-user-plus" style={{ fontSize: 10 }} aria-hidden="true" />
+                Assign
+              </>
+            ) : (
+              <>
+                <i className="ti ti-user" style={{ fontSize: 10 }} aria-hidden="true" />
+                Unassigned
+              </>
+            )}
           </>
         )}
       </button>
