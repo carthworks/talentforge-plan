@@ -4,7 +4,7 @@ import path from 'path';
 
 const KV_PREFIX = 'tf:progress:';
 
-const FALLBACK_FILE = path.join(process.cwd(), '.next', 'kv_fallback_progress.json');
+const FALLBACK_FILE = path.join(process.cwd(), '.kv_fallback_progress.json');
 
 function readFallbackProgress(): Record<string, unknown> {
   try {

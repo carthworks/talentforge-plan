@@ -22,7 +22,7 @@ const INITIAL_USERS: DBUser[] = [
   { id: 'u5', name: 'Ganesh', email: 'devops@talentforge.in', role: 'devops', avatar: 'GR', avatarColor: 'av-blue', password: 'tf2025' }
 ];
 
-const FALLBACK_FILE = path.join(process.cwd(), '.next', 'kv_fallback_users.json');
+const FALLBACK_FILE = path.join(process.cwd(), '.kv_fallback_users.json');
 
 function readFallbackUsers(): DBUser[] | null {
   try {

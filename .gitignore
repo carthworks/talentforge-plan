@@ -83,3 +83,6 @@ yarn.lock
 pnpm-lock.yaml
 bun.lockb
 html_source_docs/
+
+# ── Local Database Fallbacks ──────────────────────────────
+.kv_fallback_*.json

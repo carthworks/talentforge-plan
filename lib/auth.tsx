@@ -63,7 +63,7 @@ const AuthContext = createContext<AuthCtx>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(TEAM_MEMBERS);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch users from database
@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, users: users.length > 0 ? users : TEAM_MEMBERS, isLoading, login, logout, addUser, updateUser, deleteUser }}>
+    <AuthContext.Provider value={{ user, users, isLoading, login, logout, addUser, updateUser, deleteUser }}>
       {children}
     </AuthContext.Provider>
   );

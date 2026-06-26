@@ -114,45 +114,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ── Hydrate: localStorage first (instant), then server (background) ──
   useEffect(() => {
-    // 1. Instant hydrate from localStorage
+    if (!user?.id) {
+      setProgress(DEFAULT_PROGRESS);
+      setHydrated(true);
+      return;
+    }
+
+    const userStorageKey = `${STORAGE_KEY}_${user.id}`;
+
+    // 1. Instant hydrate from localStorage for this specific user
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(userStorageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         setProgress({ ...DEFAULT_PROGRESS, ...parsed });
+      } else {
+        setProgress(DEFAULT_PROGRESS);
       }
-    } catch { /* ignore */ }
+    } catch {
+      setProgress(DEFAULT_PROGRESS);
+    }
     setHydrated(true);
 
-    // 2. Background fetch from Vercel KV (if user is logged in)
-    if (user?.id) {
-      fetchProgressFromServer(user.id).then((serverData) => {
-        if (serverData) {
-          setProgress(serverData);
-          // Update localStorage with server truth
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-        }
-      });
-    }
+    // 2. Background fetch from Vercel KV / Fallback store (if user is logged in)
+    fetchProgressFromServer(user.id).then((serverData) => {
+      if (serverData) {
+        setProgress(serverData);
+        // Update localStorage with server truth
+        localStorage.setItem(userStorageKey, JSON.stringify(serverData));
+      } else {
+        // If server has no progress for this user, initialize it on the server
+        saveProgressToServer(user.id, progressRef.current);
+      }
+    });
   }, [user?.id]);
 
   // ── Persist: localStorage immediately, server debounced ──
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !user?.id) return;
+
+    const userStorageKey = `${STORAGE_KEY}_${user.id}`;
 
     // Immediate localStorage write
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(userStorageKey, JSON.stringify(progress));
 
     // Debounced server write (500ms)
-    if (user?.id) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        setIsSyncing(true);
-        saveProgressToServer(user.id, progressRef.current).finally(() => {
-          setIsSyncing(false);
-        });
-      }, 500);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setIsSyncing(true);
+      saveProgressToServer(user.id, progressRef.current).finally(() => {
+        setIsSyncing(false);
+      });
+    }, 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
