@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/sprints', label: 'Sprints', icon: 'ti-list-check' },
   { href: '/users', label: 'Users', icon: 'ti-users' },
   { href: '/reports', label: 'Reports', icon: 'ti-chart-bar' },
+  { href: '/settings', label: 'Settings', icon: 'ti-settings' },
 ];
 
 export default function Navbar() {

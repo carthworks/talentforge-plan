@@ -15,6 +15,20 @@ export interface CustomTask {
   o: string; // owner (stack)
 }
 
+export interface PlatformSettings {
+  platformName: string;
+  passThreshold: number;
+  aiModel: string;
+  proctoringLevel: 'low' | 'medium' | 'high';
+  irtEnabled: boolean;
+  themeColor: string;
+  orgName: string;
+  subdomain: string;
+  dpdpEnabled: boolean;
+  soc2Enabled: boolean;
+  gasLimit: number;
+}
+
 export interface SprintProgress {
   currentSprintId: number;       // active sprint number
   currentPhaseId: number;        // active phase index
@@ -23,7 +37,22 @@ export interface SprintProgress {
   notes: Record<string, string>; // taskKey → note
   customTasks?: Record<number, CustomTask[]>; // sprintId → custom tasks list
   editedTasks?: Record<string, CustomTask>; // taskKey → edited values
+  settings?: PlatformSettings;
 }
+
+export const DEFAULT_SETTINGS: PlatformSettings = {
+  platformName: 'TalentForge',
+  passThreshold: 70,
+  aiModel: 'gpt-4o',
+  proctoringLevel: 'medium',
+  irtEnabled: true,
+  themeColor: '#1D9E75',
+  orgName: 'TalentForge Academy',
+  subdomain: 'talentforge',
+  dpdpEnabled: true,
+  soc2Enabled: false,
+  gasLimit: 500000,
+};
 
 const DEFAULT_PROGRESS: SprintProgress = {
   currentSprintId: 1,
@@ -33,6 +62,7 @@ const DEFAULT_PROGRESS: SprintProgress = {
   notes: {},
   customTasks: {},
   editedTasks: {},
+  settings: DEFAULT_SETTINGS,
 };
 
 /* ─── Server sync helpers ──────────────────────────────── */
@@ -78,6 +108,7 @@ interface StoreCtx {
   addCustomTask: (sprintId: number, t: string, o: string) => void;
   editTask: (taskKey: string, t: string, o: string) => void;
   deleteCustomTask: (sprintId: number, customIdx: number) => void;
+  updateSettings: (settings: Partial<PlatformSettings>) => void;
   isSyncing: boolean;
 }
 
@@ -96,6 +127,7 @@ const StoreContext = createContext<StoreCtx>({
   addCustomTask: () => {},
   editTask: () => {},
   deleteCustomTask: () => {},
+  updateSettings: () => {},
   isSyncing: false,
 });
 
@@ -275,6 +307,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateSettings = useCallback((settings: Partial<PlatformSettings>) => {
+    setProgress((prev) => ({
+      ...prev,
+      settings: {
+        ...(prev.settings || DEFAULT_SETTINGS),
+        ...settings,
+      },
+    }));
+  }, []);
+
   return (
     <StoreContext.Provider
       value={{
@@ -292,6 +334,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addCustomTask,
         editTask,
         deleteCustomTask,
+        updateSettings,
         isSyncing,
       }}
     >

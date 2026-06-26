@@ -30,25 +30,27 @@ India's multi-disciplinary talent verification & project marketplace. This is th
 ```
 docs/
 ├── app/
-│   ├── api/progress/       # GET/PUT — Vercel KV persistence
-│   ├── dashboard/           # Sprint dashboard with sidebar
-│   ├── login/               # Static auth login page
-│   ├── phase-1/             # Phase 1 technical deep dives
-│   ├── sprint-1/            # Sprint 1 detail page
-│   ├── sprint-15/           # Sprint 15 detail page
+│   ├── api/progress/       # GET/PUT — Vercel KV progress persistence
+│   ├── api/users/          # GET/POST/PUT/DELETE — Team roster API
+│   ├── dashboard/           # Sprint dashboard with sidebar & quick-filtering
+│   ├── login/               # Roster credentials sign-in page
+│   ├── reports/             # Analytical reports module
+│   ├── settings/            # System settings panel (admin-only)
 │   ├── sprints/             # 26-sprint overview with task tracking
+│   ├── users/               # Team member roster page
 │   ├── globals.css          # Design system + all component styles
 │   ├── layout.tsx           # Root layout
 │   ├── page.tsx             # Home — business plan overview
 │   └── providers.tsx        # Auth + Store + Guard composition
 ├── components/
-│   ├── AuthGuard.tsx        # Route protection
-│   ├── Navbar.tsx           # Top navigation
+│   ├── AuthGuard.tsx        # Route protection & loading state
+│   ├── Navbar.tsx           # Top navigation (cleaned modules)
 │   ├── TaskAssign.tsx       # Team member assignment dropdown
+│   ├── TaskNotes.tsx        # Inline task notes editor
 │   └── UserBar.tsx          # Logged-in user bar + sprint progress
 ├── lib/
-│   ├── auth.tsx             # Auth context (6 static users)
-│   └── store.tsx            # Sprint progress store (KV + localStorage)
+│   ├── auth.tsx             # Auth context & dynamic roster synchronization
+│   └── store.tsx            # Sprint progress & configurations store
 ├── public/                  # Static assets
 ├── vercel.json              # Vercel deployment config
 ├── package.json
@@ -120,7 +122,7 @@ vercel --prod
 | `KV_REST_API_URL` | Optional | Vercel KV (auto-set) |
 | `KV_REST_API_TOKEN` | Optional | Vercel KV (auto-set) |
 
-> **Note:** Without KV, the app uses in-memory storage on the server and localStorage on the client. All features work — data just resets on server restart.
+> **Note:** Without KV, the app operates on persistent local database files (`.kv_fallback_users.json` and `.kv_fallback_progress.json` in the root directory). All features, dynamic users, custom tasks, and completions fully survive next builds and dev restarts.
 
 ---
 
@@ -131,21 +133,21 @@ vercel --prod
 | Route | Description |
 |-------|-------------|
 | `/` | Business plan overview (8 collapsible sections) |
-| `/dashboard` | Sprint dashboard with sidebar, stats, task management |
+| `/dashboard` | Sprint dashboard with sidebar, stats, dynamic task edits |
 | `/sprints` | 26-sprint breakdown across 4 phases |
-| `/sprint-1` | Sprint 1 deep dive — architecture decisions |
-| `/sprint-15` | Sprint 15 deep dive — NFT credential marketplace |
-| `/phase-1` | Phase 1 technical deep dives |
+| `/users` | Roster management page (add/edit/delete members) |
+| `/reports` | Workload analytics and sprint completion metrics |
+| `/settings` | System settings configuration panel (admin-only) |
 | `/login` | Authentication page |
 
 ### Core Functionality
 
-- **Static Authentication** — 6 demo users with role-based access
-- **Task Tracking** — Toggle task completion across 148 tasks, persisted to Vercel KV
-- **Team Assignment** — Assign developers, designers, PMs to individual tasks
-- **Sprint Progress** — Real-time progress bars, completion percentages
-- **Dashboard** — Collapsible sidebar, filter (All/To Do/Done), owner breakdown, team workload
-- **Responsive** — Mobile-first, works on all screen sizes
+- **Dynamic Authentication & Roster** — Add/edit/delete dynamic users, sync session changes, and manage passwords.
+- **Dynamic Task Management** — Inline creation of custom tasks, title/owner editing, and custom task deletion.
+- **Assignee & Stack Quick-Filtering** — Instantly filter lists by clicking assignees or role breakdown rows with active clearable badges.
+- **System Settings Dashboard** — Category configuration panel (AI engine, adaptive IRT, proctoring sensitivity, subdomains, theme color preview, DPDP, and SOC 2 toggles) protected by Admin-only permissions.
+- **Task Tracking & Progress** — Toggle task completion, write custom notes, and view real-time progress percentages.
+- **Responsive Shell** — Mobile-first, fully responsive design.
 
 ### Data Persistence
 
