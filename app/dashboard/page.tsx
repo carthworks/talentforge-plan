@@ -491,6 +491,119 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* ── Project Status Chart ─────────────────────── */}
+        <div style={{
+          background: 'var(--color-background-secondary)',
+          border: '0.5px solid var(--color-border-tertiary)',
+          borderRadius: 'var(--border-radius-lg)',
+          padding: '18px 20px',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                Project Status
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', margin: '2px 0 0' }}>
+                Phase Completion Overview
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>Overall</span>
+              <span style={{
+                fontSize: 13, fontWeight: 700,
+                color: overall.pct === 100 ? '#1D9E75' : 'var(--color-text-primary)',
+                background: overall.pct === 100 ? 'rgba(29,158,117,0.1)' : 'var(--color-background-tertiary)',
+                border: '0.5px solid var(--color-border-tertiary)',
+                borderRadius: 20, padding: '2px 10px',
+              }}>
+                {overall.pct}%
+              </span>
+            </div>
+          </div>
+
+          {/* Donut rings row */}
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Donuts */}
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              {phaseStats.map((ph) => {
+                const r = 32;
+                const circ = 2 * Math.PI * r;
+                const dash = (ph.pct / 100) * circ;
+                return (
+                  <div key={ph.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{ position: 'relative', width: 84, height: 84 }}>
+                      <svg width="84" height="84" viewBox="0 0 84 84" style={{ transform: 'rotate(-90deg)' }}>
+                        <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-background-tertiary)" strokeWidth="8" />
+                        <circle
+                          cx="42" cy="42" r={r} fill="none"
+                          stroke={ph.color}
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={`${dash} ${circ - dash}`}
+                          style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                        />
+                      </svg>
+                      {/* Center label */}
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: ph.color, lineHeight: 1 }}>{ph.pct}%</span>
+                        <span style={{ fontSize: 9, color: 'var(--color-text-tertiary)', lineHeight: 1.2 }}>{ph.done}/{ph.total}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: ph.color }}>Phase {ph.id}</div>
+                      <div style={{ fontSize: 9, color: 'var(--color-text-tertiary)', maxWidth: 80, lineHeight: 1.3 }}>{ph.name}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Vertical separator */}
+            <div style={{ width: 1, background: 'var(--color-border-tertiary)', alignSelf: 'stretch', margin: '0 4px', flexShrink: 0 }} />
+
+            {/* Horizontal bar lanes */}
+            <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
+              {phaseStats.map((ph) => (
+                <div key={ph.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: ph.color, display: 'inline-block', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                        Ph {ph.id} · {ph.period}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, color: ph.color, fontWeight: 600 }}>{ph.done}/{ph.total}</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--color-background-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${ph.pct}%`,
+                      background: `linear-gradient(90deg, ${ph.color}cc, ${ph.color})`,
+                      borderRadius: 6,
+                      transition: 'width 0.6s ease',
+                    }} />
+                  </div>
+                </div>
+              ))}
+              {/* Mini legend */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 16, height: 3, background: 'var(--color-background-tertiary)', borderRadius: 3, display: 'inline-block' }} />
+                  Remaining
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 16, height: 3, background: 'var(--tf-teal)', borderRadius: 3, display: 'inline-block' }} />
+                  Completed
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Sprint detail header */}
         <div className="dash-section-header">
           <div>

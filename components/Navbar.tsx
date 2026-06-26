@@ -22,7 +22,10 @@ export default function Navbar() {
     <nav className="nav" role="navigation" aria-label="Main navigation">
       <Link href="/dashboard" className="nav-logo">
         <i className="ti ti-flame" aria-hidden="true" />
-        <span>TalentForge</span>
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>TalentForge</span>
+          <span style={{ fontSize: '0.65rem', color: 'var(--color-text-tertiary)', letterSpacing: '0.04em' }}>Project Tracker</span>
+        </div>
       </Link>
 
       <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -18,7 +18,7 @@ const INITIAL_USERS: DBUser[] = [
   { id: 'u1', name: 'administrator', email: 'admin@talentforge.in', role: 'admin', avatar: 'AK', avatarColor: 'av-orange', password: 'tf2025' },
   { id: 'u2', name: 'Rohan', email: 'dev@talentforge.in', role: 'developer', avatar: 'PS', avatarColor: 'av-teal', password: 'tf2025' },
   { id: 'u3', name: 'Karthikeyan', email: 'designer@talentforge.in', role: 'pm', avatar: 'RM', avatarColor: 'av-purple', password: 'tf2025' },
-  { id: 'u4', name: 'sathya', email: 'pm@talentforge.in', role: 'pm', avatar: 'NS', avatarColor: 'av-amber', password: 'tf2025' },
+  { id: 'u4', name: 'Sathya', email: 'pm@talentforge.in', role: 'pm', avatar: 'NS', avatarColor: 'av-amber', password: 'tf2025' },
   { id: 'u5', name: 'Ganesh', email: 'devops@talentforge.in', role: 'devops', avatar: 'GR', avatarColor: 'av-blue', password: 'tf2025' }
 ];
 
